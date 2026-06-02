@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	trpc "trpc.group/trpc-go/trpc-go"
+	_ "trpc.group/trpc-go/trpc-opentelemetry/oteltrpc"
 	"trpc.group/trpc-go/trpc-go/log"
 
 	pb "echat/service/api/stub"

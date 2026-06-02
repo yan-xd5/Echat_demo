@@ -1,15 +1,26 @@
 server:
+  filter:                           # ★ 服务端 Filter 链（先 otel 创建 Span，再业务 filter）
+    - opentelemetry
+    - myServerFilter
   service:
     - name: trpc.echat.controller.ControllerService
       ip: 127.0.0.1
       port: 8002
       protocol: trpc
-  filter:
-    - myServerFilter
 
-# ★ Controller 作为 client 调用 API 服务
+# Controller 作为 client 调用 API 服务
 client:
+  filter:                           # ★ 客户端 Filter（调用下游时自动传递 TraceID）
+    - opentelemetry
   service:
     - name: trpc.echat.api.UserService
       target: ip://127.0.0.1:8001
       protocol: trpc
+
+plugins:
+  telemetry:
+    opentelemetry:
+      addr: http://127.0.0.1:4318    # http:// 前缀走明文，否则默认 HTTPS 会连不上
+      tenant_id: echat
+      sampler:
+        fraction: 1.0

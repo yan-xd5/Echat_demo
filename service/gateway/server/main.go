@@ -9,6 +9,7 @@ import (
 
 	trpc "trpc.group/trpc-go/trpc-go"
 	"trpc.group/trpc-go/trpc-go/client"
+	_ "trpc.group/trpc-go/trpc-opentelemetry/oteltrpc"
 	"trpc.group/trpc-go/trpc-go/log"
 
 	ctrlpb "echat/service/controller/stub"

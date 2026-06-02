@@ -1,4 +1,6 @@
 server:
+  filter:                           # ★ OpenTelemetry 服务端 Filter
+    - opentelemetry
   service:
     # tRPC 对内接口（Controller 通过此端口推送消息）
     - name: trpc.echat.gateway.GatewayInternal
@@ -8,7 +10,17 @@ server:
 
 # Gateway 作为 client 调用 Controller
 client:
+  filter:                           # ★ OpenTelemetry 客户端 Filter
+    - opentelemetry
   service:
     - name: trpc.echat.controller.ControllerService
       target: ip://127.0.0.1:8002
       protocol: trpc
+
+plugins:
+  telemetry:
+    opentelemetry:
+      addr: http://127.0.0.1:4318
+      tenant_id: echat
+      sampler:
+        fraction: 1.0
