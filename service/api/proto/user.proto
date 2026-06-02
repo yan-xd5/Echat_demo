@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package echat.api;
+
+option go_package = "echat/service/api/stub";
+
+import "trpc/api/annotations.proto";
+
+// 用户信息（对应数据库 user 表）
+message User {
+    string uid      = 1;  // 用户编号
+    string account  = 2;  // 登录账号
+    string username = 3;  // 用户名（显示名）
+    string gender   = 4;  // 性别
+    string avatar   = 5;  // 头像URL
+    string region   = 6;  // 地区
+    string email    = 7;  // 邮箱
+    string bio      = 8;  // 简介
+}
+
+// ============================================================
+// 请求 / 响应
+// ============================================================
+message LoginRequest {
+    string account  = 1;  // 登录账号
+    string password = 2;
+}
+
+message LoginResponse {
+    string token = 1;
+    User user    = 2;
+}
+
+message GetUserInfoRequest {
+    string uid = 1;  // 用户编号
+}
+
+message GetUserInfoResponse {
+    User user = 1;
+}
+
+// ============================================================
+// 用户服务（对内 tRPC + 对外 HTTP）
+// ============================================================
+service UserService {
+    // POST /api/v1/user/login
+    rpc Login(LoginRequest) returns (LoginResponse) {
+        option (trpc.api.http) = {
+            post: "/api/v1/user/login"
+            body: "*"
+        };
+    }
+
+    // GET /api/v1/user/info?uid=xxx
+    rpc GetUserInfo(GetUserInfoRequest) returns (GetUserInfoResponse) {
+        option (trpc.api.http) = {
+            get: "/api/v1/user/info"
+        };
+    }
+}

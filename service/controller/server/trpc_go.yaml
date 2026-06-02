@@ -1,0 +1,15 @@
+server:
+  service:
+    - name: trpc.echat.controller.ControllerService
+      ip: 127.0.0.1
+      port: 8002
+      protocol: trpc
+  filter:
+    - myServerFilter
+
+# ★ Controller 作为 client 调用 API 服务
+client:
+  service:
+    - name: trpc.echat.api.UserService
+      target: ip://127.0.0.1:8001
+      protocol: trpc

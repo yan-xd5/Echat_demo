@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package common;
+
+option go_package = "echat/proto/common;commonpb";
+
+// 消息类型
+enum MessageType {
+    TEXT = 0;
+    IMAGE = 1;
+    VIDEO = 2;
+    SYSTEM_NOTICE = 5;
+}
+
+// 在线状态
+enum OnlineStatus {
+    OFFLINE = 0;
+    ONLINE = 1;
+}
+
+// 用户简要信息（被多个服务引用）
+message UserBrief {
+    string user_id = 1;
+    string nickname = 2;
+}

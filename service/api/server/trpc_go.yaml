@@ -1,0 +1,13 @@
+server:
+  service:
+    # 对内：tRPC 协议（Controller、Gateway 调用）
+    - name: trpc.echat.api.UserService
+      ip: 127.0.0.1
+      port: 8001
+      protocol: trpc
+
+    # 对外：HTTP 协议（前端 / App 调用）
+    - name: trpc.echat.api.UserService.http
+      ip: 0.0.0.0
+      port: 9001
+      protocol: http

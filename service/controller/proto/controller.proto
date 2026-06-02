@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package echat.controller;
+
+option go_package = "echat/service/controller/stub";
+
+import "common/common.proto";
+
+// ============================================================
+// 中控服务：消息路由 + 权限校验 + 状态管理
+// ============================================================
+service ControllerService {
+    // Token 校验（Gateway 建连时调用）
+    rpc AuthCheck(AuthCheckRequest) returns (AuthCheckResponse);
+
+    // 消息路由（Gateway 收到客户端消息后调用）
+    rpc RouteMessage(RouteMessageRequest) returns (RouteMessageResponse);
+
+    // 在线状态变更（Gateway 感知到上下线时调用）
+    rpc UpdateStatus(UpdateStatusRequest) returns (UpdateStatusResponse);
+}
+
+// ============================================================
+// AuthCheck
+// ============================================================
+message AuthCheckRequest {
+    string token = 1;
+}
+
+message AuthCheckResponse {
+    bool valid = 1;
+    string user_id = 2;
+    string reason = 3;
+}
+
+// ============================================================
+// RouteMessage
+// ============================================================
+message RouteMessageRequest {
+    string from_user_id = 1;  // 发送者
+    string to_user_id = 2;    // 接收者
+    string content = 3;       // 消息内容
+    string msg_id = 4;        // 客户端生成的临时消息 ID
+}
+
+message RouteMessageResponse {
+    bool success = 1;
+    string msg_id = 2;       // 服务端分配的消息 ID
+    int64 server_time = 3;   // 服务端时间戳
+    string reason = 4;       // 说明（成功原因或失败原因）
+}
+
+// ============================================================
+// UpdateStatus
+// ============================================================
+message UpdateStatusRequest {
+    string user_id = 1;
+    common.OnlineStatus status = 2;
+    string gateway_id = 3;
+}
+
+message UpdateStatusResponse {}

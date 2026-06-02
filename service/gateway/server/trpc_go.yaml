@@ -1,0 +1,14 @@
+server:
+  service:
+    # tRPC 对内接口（Controller 通过此端口推送消息）
+    - name: trpc.echat.gateway.GatewayInternal
+      ip: 0.0.0.0
+      port: 8003
+      protocol: trpc
+
+# Gateway 作为 client 调用 Controller
+client:
+  service:
+    - name: trpc.echat.controller.ControllerService
+      target: ip://127.0.0.1:8002
+      protocol: trpc
