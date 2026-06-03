@@ -1,20 +1,24 @@
 server:
-  filter:                           # ★ OpenTelemetry 服务端 Filter
+  filter:
     - opentelemetry
   service:
-    # 对内：tRPC 协议（Controller、Gateway 调用）
     - name: trpc.echat.api.UserService
       ip: 127.0.0.1
       port: 8001
       protocol: trpc
+      registry: polarismesh            # ★ 注册到北极星
 
-    # 对外：HTTP 协议（前端 / App 调用）
     - name: trpc.echat.api.UserService.http
       ip: 0.0.0.0
       port: 9001
       protocol: http
 
 plugins:
+  registry:
+    polarismesh:
+      protocol: grpc
+      address_list: 127.0.0.1:8091
+
   telemetry:
     opentelemetry:
       addr: http://127.0.0.1:4318

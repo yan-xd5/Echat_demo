@@ -8,11 +8,11 @@ import (
 	"time"
 
 	trpc "trpc.group/trpc-go/trpc-go"
-	"trpc.group/trpc-go/trpc-go/client"
 	"trpc.group/trpc-go/trpc-go/filter"
 	"trpc.group/trpc-go/trpc-go/log"
 
-	_ "trpc.group/trpc-go/trpc-opentelemetry/oteltrpc" // OpenTelemetry 链路追踪
+	_ "trpc.group/trpc-go/trpc-opentelemetry/oteltrpc"    // OpenTelemetry 链路追踪
+	_ "trpc.group/trpc-go/trpc-naming-polarismesh" // 北极星服务注册与发现
 
 	ctrlpb "echat/service/controller/stub"
 	apipb "echat/service/api/stub"
@@ -98,9 +98,7 @@ func init() {
 
 func main() {
 	// ★ 创建 API 客户端
-	apiClient := apipb.NewUserServiceClientProxy(
-		client.WithTarget("ip://127.0.0.1:8001"),
-	)
+	apiClient := apipb.NewUserServiceClientProxy() // 通过北极星发现 API
 
 	s := trpc.NewServer()
 	ctrlpb.RegisterControllerServiceService(s, &controllerImpl{

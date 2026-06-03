@@ -9,6 +9,7 @@ import (
 
 	trpc "trpc.group/trpc-go/trpc-go"
 	_ "trpc.group/trpc-go/trpc-opentelemetry/oteltrpc"
+	_ "trpc.group/trpc-go/trpc-naming-polarismesh" // 北极星服务注册与发现
 	"trpc.group/trpc-go/trpc-go/log"
 
 	pb "echat/service/api/stub"

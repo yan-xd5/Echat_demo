@@ -1,23 +1,31 @@
 server:
-  filter:                           # ★ OpenTelemetry 服务端 Filter
+  filter:
     - opentelemetry
   service:
-    # tRPC 对内接口（Controller 通过此端口推送消息）
     - name: trpc.echat.gateway.GatewayInternal
       ip: 0.0.0.0
       port: 8003
       protocol: trpc
+      registry: polarismesh            # ★ 注册到北极星
 
-# Gateway 作为 client 调用 Controller
 client:
-  filter:                           # ★ OpenTelemetry 客户端 Filter
+  filter:
     - opentelemetry
   service:
     - name: trpc.echat.controller.ControllerService
-      target: ip://127.0.0.1:8002
+      discovery: polarismesh           # ★ 通过北极星发现 Controller
       protocol: trpc
 
 plugins:
+  registry:
+    polarismesh:
+      protocol: grpc
+      address_list: 127.0.0.1:8091
+
+  selector:
+    polarismesh:
+      address_list: 127.0.0.1:8091
+
   telemetry:
     opentelemetry:
       addr: http://127.0.0.1:4318

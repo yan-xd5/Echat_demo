@@ -8,8 +8,8 @@ import (
 	"syscall"
 
 	trpc "trpc.group/trpc-go/trpc-go"
-	"trpc.group/trpc-go/trpc-go/client"
 	_ "trpc.group/trpc-go/trpc-opentelemetry/oteltrpc"
+	_ "trpc.group/trpc-go/trpc-naming-polarismesh" // 北极星服务注册与发现
 	"trpc.group/trpc-go/trpc-go/log"
 
 	ctrlpb "echat/service/controller/stub"
@@ -52,9 +52,8 @@ func main() {
 	connMgr := NewConnManager()
 
 	// ② 创建 Controller 客户端（Gateway → Controller）
-	ctrlCli := ctrlpb.NewControllerServiceClientProxy(
-		client.WithTarget("ip://127.0.0.1:8002"),
-	)
+	// ★ 通过北极星发现 Controller，不再硬编码 IP
+	ctrlCli := ctrlpb.NewControllerServiceClientProxy()
 
 	// ③ 启动 WebSocket 服务器（goroutine，端口 9000）
 	wsServer := NewWSServer(connMgr, ctrlCli, gatewayID)
