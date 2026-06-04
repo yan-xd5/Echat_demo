@@ -4,13 +4,6 @@
 
 ## 架构
 
-```
-客户端 (WebSocket) ──► Gateway (代理) ──► Controller (中控) ──► API (数据)
-   端口:9000             端口:8003           端口:8002             端口:8001/9001
-                                                                     │
-                                                                   MySQL
-```
-
 **三服务职责：**
 
 | 服务 | 协议 | 职责 |
@@ -18,16 +11,6 @@
 | **Gateway** | WebSocket + tRPC | 长连接接入、协议转换、连接管理、消息收发 |
 | **Controller** | tRPC | 消息路由决策、Token 校验、在线状态管理 |
 | **API** | tRPC + HTTP | 用户/好友/群组 CRUD、数据库操作 |
-
-**调用链路：**
-
-```
-Gateway ──tRPC──► Controller.AuthCheck / RouteMessage / UpdateStatus
-                       │
-                       └── tRPC ──► API.GetUserInfo / Login
-                                       │
-                                       └── sqlx ──► MySQL
-```
 
 ## 技术栈
 
@@ -48,26 +31,25 @@ Gateway ──tRPC──► Controller.AuthCheck / RouteMessage / UpdateStatus
 echat/
 ├── go.work                          # Go Workspace（多模块管理）
 ├── go.mod                           # 根模块
+├── docs/                            # 项目文档
+│   └── day/                         # 开发日报
 ├── proto/common/                    # 共享 Proto 定义
-│   └── common.proto
+│   ├── common.proto
+│   └── common.pb.go
 ├── service/
-│   ├── api/                         # API 服务
-│   │   ├── proto/user.proto         # RPC + HTTP 路由定义
-│   │   ├── stub/                    # 生成的桩代码（.pb.go + .trpc.go）
-│   │   │   ├── user.pb.go
-│   │   │   └── user.trpc.go
+│   ├── api/                         # API 服务（用户/好友/群组 CRUD）
+│   │   ├── proto/user.proto
+│   │   ├── stub/                    # 生成的桩代码
 │   │   ├── server/
 │   │   │   ├── main.go              # 启动入口
 │   │   │   ├── db.go                # MySQL 连接池
-│   │   │   ├── config.go            # 环境变量加载
-│   │   │   ├── trpc_go.yaml         # tRPC 配置
-│   │   │   ├── .env                 # 本地数据库密码（不提交）
-│   │   │   ├── .env.example         # 环境变量模板
+│   │   │   ├── config.go            # .env 加载
+│   │   │   ├── trpc_go.yaml
+│   │   │   ├── .env + .env.example
 │   │   │   └── repository/          # 数据访问层
-│   │   │       └── user_repo.go
 │   │   └── go.mod
 │   │
-│   ├── controller/                  # 中控服务
+│   ├── controller/                  # 中控服务（消息路由 + 鉴权）
 │   │   ├── proto/controller.proto
 │   │   ├── stub/
 │   │   ├── server/
@@ -76,18 +58,18 @@ echat/
 │   │   │   └── trpc_go.yaml
 │   │   └── go.mod
 │   │
-│   └── gateway/                     # 代理服务
+│   └── gateway/                     # 代理服务（WebSocket + 协议转换）
 │       ├── proto/gateway.proto
 │       ├── stub/
 │       ├── server/
 │       │   ├── main.go
-│       │   ├── ws_handler.go        # WebSocket 处理器
-│       │   ├── conn_manager.go      # 连接管理器
-│       │   ├── test_client.go       # WebSocket 测试客户端
+│       │   ├── ws_handler.go        # WebSocket 处理
+│       │   ├── conn_manager.go      # 连接管理
+│       │   ├── test_client.go       # 测试客户端
 │       │   └── trpc_go.yaml
 │       └── go.mod
 │
-├── CLAUDE.md                        # Claude Code 项目文档
+├── CLAUDE.md
 └── README.md
 ```
 
@@ -104,6 +86,7 @@ echat/
 - [x] OpenTelemetry 链路追踪（Jaeger 可视化）
 - [x] 双协议支持（API 同时支持 tRPC 和 HTTP）
 - [x] 数据库环境变量管理（godotenv + .env）
+- [x] Polaris 服务发现（替代硬编码 IP）
 
 ### 待实现
 
@@ -112,7 +95,6 @@ echat/
 - [ ] 消息持久化存储与离线消息
 - [ ] JWT 真实 Token 签发与校验
 - [ ] 协程池 + 限流 + 熔断降级
-- [ ] 服务发现（北极星/Consul）
 
 ## 插件与中间件
 
