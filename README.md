@@ -1,6 +1,6 @@
 # eChat — tRPC-Go 即时通讯后端
 
-基于 tRPC-Go 框架的分布式 IM 系统，采用三服务架构，支持 WebSocket 长连接、tRPC 服务间通信、OpenTelemetry 链路追踪。
+基于 tRPC-Go 框架的分布式 IM 系统，采用三服务架构，支持 WebSocket 长连接、Polaris 服务发现、OpenTelemetry 链路追踪。
 
 ## 架构
 
@@ -38,6 +38,7 @@ Gateway ──tRPC──► Controller.AuthCheck / RouteMessage / UpdateStatus
 | 序列化 | Protobuf |
 | WebSocket | gorilla/websocket |
 | 数据库 | MySQL（sqlx） |
+| 服务发现 | Polaris（北极星） |
 | 链路追踪 | OpenTelemetry + Jaeger |
 | 包管理 | Go Workspace |
 
@@ -118,6 +119,7 @@ echat/
 | 插件 | 服务 | 用途 |
 |------|------|------|
 | **opentelemetry** | 全部 | 链路追踪，TraceID 注入日志 + Span 上报 Jaeger |
+| **polarismesh** | 全部 | 北极星服务发现，替代硬编码 IP |
 | **myServerFilter** | Controller | 自定义 Filter：按请求类型解析 Token、校验身份、注入 ctx |
 | **godotenv** | API | 自动加载 .env 环境变量 |
 | **sqlx** | API | MySQL 连接池与查询 |
@@ -139,7 +141,14 @@ echat/
 
 - Go 1.24+
 - MySQL 8.0+
-- Jaeger（可选，用于链路追踪可视化）
+- Docker（运行 Polaris）
+- Jaeger（可选，链路追踪可视化）
+
+### 1.1 启动 Polaris
+
+```bash
+docker run -d --name polaris -p 8091:8091 polarismesh/polaris-standalone:latest
+```
 
 ### 2. 数据库
 
