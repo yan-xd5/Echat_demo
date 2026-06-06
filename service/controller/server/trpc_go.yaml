@@ -3,26 +3,31 @@ server:
     - opentelemetry
     - myServerFilter
   service:
-    - name: trpc.echat.controller.ControllerService
+    - name: echat.controller.ControllerService
       ip: 127.0.0.1
       port: 8002
       protocol: trpc
       registry: polarismesh            # ★ 注册到北极星
 
-# Controller 作为 client 调用 API 服务
 client:
   filter:
     - opentelemetry
   service:
-    - name: trpc.echat.api.UserService
-      discovery: polarismesh           # ★ 通过北极星发现（不再硬编码 target）
+    - name: echat.api.UserService
+      namespace: default               # ★ 缺失的 namespace
+      discovery: polarismesh
       protocol: trpc
 
 plugins:
   registry:
     polarismesh:
+      register_self: true
       protocol: grpc
       address_list: 127.0.0.1:8091
+      service:                         # ★ 显式列出要注册的服务
+        - name: echat.controller.ControllerService
+          namespace: default
+          token: polaris               # 默认 token
 
   selector:
     polarismesh:

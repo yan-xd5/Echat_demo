@@ -5,6 +5,7 @@ go 1.24.2
 require (
 	google.golang.org/protobuf v1.36.11
 	trpc.group/trpc-go/trpc-go v1.0.3
+	trpc.group/trpc-go/trpc-naming-polarismesh v1.0.0
 	trpc.group/trpc-go/trpc-opentelemetry/oteltrpc v1.0.2
 )
 
@@ -90,7 +91,6 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	trpc.group/trpc-go/tnet v1.0.1 // indirect
-	trpc.group/trpc-go/trpc-naming-polarismesh v1.0.0 // indirect
 	trpc.group/trpc-go/trpc-opentelemetry v1.0.2 // indirect
 	trpc.group/trpc/trpc-protocol/pb/go/trpc v1.0.0 // indirect
 )

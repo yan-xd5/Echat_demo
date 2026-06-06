@@ -2,13 +2,13 @@ server:
   filter:
     - opentelemetry
   service:
-    - name: trpc.echat.api.UserService
+    - name: echat.api.UserService
       ip: 127.0.0.1
       port: 8001
       protocol: trpc
       registry: polarismesh            # ★ 注册到北极星
 
-    - name: trpc.echat.api.UserService.http
+    - name: echat.api.UserService.http
       ip: 0.0.0.0
       port: 9001
       protocol: http
@@ -16,8 +16,13 @@ server:
 plugins:
   registry:
     polarismesh:
+      register_self: true
       protocol: grpc
       address_list: 127.0.0.1:8091
+      service:
+        - name: echat.api.UserService
+          namespace: default
+          token: polaris
 
   telemetry:
     opentelemetry:

@@ -2,7 +2,7 @@ server:
   filter:
     - opentelemetry
   service:
-    - name: trpc.echat.gateway.GatewayInternal
+    - name: echat.gateway.GatewayInternal
       ip: 0.0.0.0
       port: 8003
       protocol: trpc
@@ -12,15 +12,21 @@ client:
   filter:
     - opentelemetry
   service:
-    - name: trpc.echat.controller.ControllerService
-      discovery: polarismesh           # ★ 通过北极星发现 Controller
+    - name: echat.controller.ControllerService
+      namespace: default               # ★ Polaris 命名空间
+      discovery: polarismesh
       protocol: trpc
 
 plugins:
   registry:
     polarismesh:
+      register_self: true
       protocol: grpc
       address_list: 127.0.0.1:8091
+      service:
+        - name: echat.gateway.GatewayInternal
+          namespace: default
+          token: polaris
 
   selector:
     polarismesh:
