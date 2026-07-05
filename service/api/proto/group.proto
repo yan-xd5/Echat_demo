@@ -1,0 +1,92 @@
+syntax = "proto3";
+
+package echat.api;
+
+option go_package = "echat/service/api/stub";
+
+import "trpc/api/annotations.proto";
+
+service GroupService {
+    rpc CreateGroup(CreateGroupRequest) returns (CreateGroupResponse) {
+        option (trpc.api.http) = {
+            post: "/api/v1/group/create"
+            body: "*"
+        };
+    }
+    rpc JoinGroup(JoinGroupRequest) returns (JoinGroupResponse) {
+        option (trpc.api.http) = {
+            post: "/api/v1/group/join"
+            body: "*"
+        };
+    }
+    rpc LeaveGroup(LeaveGroupRequest) returns (LeaveGroupResponse) {
+        option (trpc.api.http) = {
+            post: "/api/v1/group/leave"
+            body: "*"
+        };
+    }
+    rpc GetMembers(GetMembersRequest) returns (GetMembersResponse) {
+        option (trpc.api.http) = {
+            get: "/api/v1/group/members"
+        };
+    }
+    rpc GetMyGroups(GetMyGroupsRequest) returns (GetMyGroupsResponse) {
+        option (trpc.api.http) = {
+            get: "/api/v1/group/my"
+        };
+    }
+}
+
+message CreateGroupRequest {
+    string group_name  = 1;
+    string group_intro = 2;
+}
+
+message CreateGroupResponse {
+    string gid = 1;
+}
+
+message JoinGroupRequest {
+    string gid        = 1;
+    string apply_text = 2;
+}
+
+message JoinGroupResponse {
+    string req_id = 1;
+}
+
+message LeaveGroupRequest {
+    string gid = 1;
+}
+
+message LeaveGroupResponse {}
+
+message GetMembersRequest {
+    string gid = 1;
+}
+
+message GetMembersResponse {
+    repeated MemberInfo members = 1;
+}
+
+message MemberInfo {
+    string uid      = 1;
+    string nickname = 2;
+    string role     = 3;
+    string avatar   = 4;
+    int64  join_time = 5;
+}
+
+message GetMyGroupsRequest {}
+
+message GetMyGroupsResponse {
+    repeated GroupInfo groups = 1;
+}
+
+message GroupInfo {
+    string gid         = 1;
+    string group_name  = 2;
+    string group_avatar = 3;
+    string my_role     = 4;
+    int32  member_count = 5;
+}

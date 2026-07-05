@@ -1,5 +1,6 @@
 server:
   filter:
+    - apiAuth
     - opentelemetry
   service:
     - name: echat.api.UserService
@@ -11,7 +12,7 @@ server:
     - name: echat.api.UserService.http
       ip: 0.0.0.0
       port: 9001
-      protocol: http
+      protocol: restful
 
 plugins:
   registry:

@@ -5,122 +5,202 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
+	"time"
 
+	goredis "github.com/redis/go-redis/v9"
+	"golang.org/x/crypto/bcrypt"
+
+	sdkredis "echat/sdk/redis"
 	trpc "trpc.group/trpc-go/trpc-go"
 	_ "trpc.group/trpc-go/trpc-opentelemetry/oteltrpc"
-	_ "trpc.group/trpc-go/trpc-naming-polarismesh"          // 北极星服务发现
-	_ "trpc.group/trpc-go/trpc-naming-polarismesh/registry" // 北极星服务注册
+	_ "trpc.group/trpc-go/trpc-naming-polarismesh"
+	_ "trpc.group/trpc-go/trpc-naming-polarismesh/registry"
 	"trpc.group/trpc-go/trpc-go/log"
 
+	"echat/sdk/auth"
+	"echat/sdk/entity"
+	"echat/sdk/idgen"
+	"echat/sdk/mysql"
 	pb "echat/service/api/stub"
-	"echat/service/api/server/repository"
 )
 
-// userImpl 实现 UserService 接口
 type userImpl struct {
 	pb.UnimplementedUserService
-	userRepo *repository.UserRepo
+	userRepo *mysql.UserRepo
+	idGen    *idgen.Snowflake
 }
 
-// Login 登录（account + password 校验）
-func (s *userImpl) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginResponse, error) {
-	log.InfoContextf(ctx, "[API服务] 收到登录请求: account=%s", req.Account)
+func (s *userImpl) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.RegisterResponse, error) {
+	log.InfoContextf(ctx, "[API] 注册: account=%s", req.Account)
 
-	// ★ 根据 account 查询用户
-	userRow, err := s.userRepo.FindByAccount(req.Account)
+	exists, err := s.userRepo.ExistsByAccount(ctx, req.Account)
 	if err != nil {
-		log.ErrorContextf(ctx, "[API服务] 账号不存在: %s", req.Account)
+		return nil, fmt.Errorf("检查账号失败: %w", err)
+	}
+	if exists {
+		return nil, fmt.Errorf("账号已存在")
+	}
+
+	plainPassword, err := auth.DecryptPassword(req.Password)
+	if err != nil {
+		return nil, fmt.Errorf("密码解密失败: %w", err)
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(plainPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, fmt.Errorf("密码加密失败: %w", err)
+	}
+
+	uid := s.idGen.Generate()
+	if err := s.userRepo.InsertUser(ctx, &entity.User{
+		UID: uid, Account: req.Account, Password: string(hash), Username: req.Username,
+		Gender: &req.Gender, Region: &req.Region, Bio: &req.Bio, Avatar: &req.Avatar,
+	}); err != nil {
+		return nil, fmt.Errorf("创建用户失败: %w", err)
+	}
+
+	log.InfoContextf(ctx, "[API] 注册成功: uid=%s", uid)
+	return &pb.RegisterResponse{Uid: uid, Account: req.Account, Username: req.Username}, nil
+}
+
+func (s *userImpl) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginResponse, error) {
+	log.InfoContextf(ctx, "[API] 登录: account=%s", req.Account)
+
+	u, err := s.userRepo.FindUserByAccount(ctx, req.Account)
+	if err != nil {
+		return nil, fmt.Errorf("账号或密码错误")
+	}
+	plainPassword, err := auth.DecryptPassword(req.Password)
+	if err != nil {
+		return nil, fmt.Errorf("密码解密失败: %w", err)
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(plainPassword)); err != nil {
 		return nil, fmt.Errorf("账号或密码错误")
 	}
 
-	// ★ 校验密码（生产环境用 bcrypt）
-	if userRow.Password != req.Password {
-		log.ErrorContextf(ctx, "[API服务] 密码错误: account=%s", req.Account)
-		return nil, fmt.Errorf("账号或密码错误")
+	token, err := auth.SignToken(u.UID, u.Account, "web")
+	if err != nil {
+		return nil, fmt.Errorf("Token签发失败")
 	}
-
-	log.InfoContextf(ctx, "[API服务] 登录成功: uid=%s, username=%s", userRow.UID, userRow.Username)
 
 	return &pb.LoginResponse{
-		Token: "eyJhbGciOiJIUzI1NiJ9." + userRow.UID,
+		Token: token, ExpiresAt: time.Now().Add(7 * 24 * time.Hour).Unix(),
 		User: &pb.User{
-			Uid:      userRow.UID,
-			Account:  userRow.Account,
-			Username: userRow.Username,
-			Gender:   userRow.Gender,
-			Avatar:   strPtr(userRow.Avatar),
-			Region:   strPtr(userRow.Region),
-			Email:    strPtr(userRow.Email),
-			Bio:      strPtr(userRow.Bio),
+			Uid: u.UID, Account: u.Account, Username: u.Username,
+			Gender: entity.PtrVal(u.Gender), Avatar: entity.PtrVal(u.Avatar),
+			Region: entity.PtrVal(u.Region), Email: entity.PtrVal(u.Email), Bio: entity.PtrVal(u.Bio),
 		},
 	}, nil
 }
 
-// GetUserInfo 获取用户信息
 func (s *userImpl) GetUserInfo(ctx context.Context, req *pb.GetUserInfoRequest) (*pb.GetUserInfoResponse, error) {
-	log.InfoContextf(ctx, "[API服务] 查询用户信息: uid=%s", req.Uid)
-
-	userRow, err := s.userRepo.FindByUID(req.Uid)
+	u, err := s.userRepo.FindUserByUID(ctx, req.Uid)
 	if err != nil {
-		log.ErrorContextf(ctx, "[API服务] 用户不存在: uid=%s", req.Uid)
 		return nil, fmt.Errorf("用户不存在")
 	}
-
 	return &pb.GetUserInfoResponse{
 		User: &pb.User{
-			Uid:      userRow.UID,
-			Account:  userRow.Account,
-			Username: userRow.Username,
-			Gender:   userRow.Gender,
-			Avatar:   strPtr(userRow.Avatar),
-			Region:   strPtr(userRow.Region),
-			Email:    strPtr(userRow.Email),
-			Bio:      strPtr(userRow.Bio),
+			Uid: u.UID, Account: u.Account, Username: u.Username,
+			Gender: entity.PtrVal(u.Gender), Avatar: entity.PtrVal(u.Avatar),
+			Region: entity.PtrVal(u.Region), Email: entity.PtrVal(u.Email), Bio: entity.PtrVal(u.Bio),
 		},
 	}, nil
-}
-
-// strPtr 将 *string 转为 string，nil 返回空串
-func strPtr(s *string) string {
-	if s == nil {
-		return ""
-	}
-	return *s
 }
 
 func main() {
-	// ① 初始化 MySQL 连接池（优先读取环境变量 MYSQL_DSN）
 	dsn := GetDSN()
-	db, err := NewDB(dsn)
+	db, err := mysql.NewDB(dsn)
 	if err != nil {
-		log.Fatalf("[API服务] 数据库初始化失败: %v", err)
+		log.Fatalf("[API] MySQL 初始化失败: %v", err)
 	}
 	defer db.Close()
-	log.Info("[API服务] MySQL 连接成功")
 
-	// ② 创建数据访问层
-	userRepo := repository.NewUserRepo(db)
+	workerID := int64(1)
+	if s := os.Getenv("SNOWFLAKE_WORKER_ID"); s != "" {
+		if v, _ := strconv.ParseInt(s, 10, 64); v >= 1 && v <= 1023 {
+			workerID = v
+		}
+	}
+	idGen, err := idgen.NewSnowflake(workerID)
+	if err != nil {
+		log.Fatalf("[API] Snowflake 初始化失败: %v", err)
+	}
 
-	// ③ 创建 service，注入依赖
-	svc := &userImpl{
-		userRepo: userRepo,
+	userRepo := mysql.NewUserRepo(db)
+	friendRepo := mysql.NewFriendRepo(db)
+	msgRepo := mysql.NewMessageRepo(db)
+	groupRepo := mysql.NewGroupRepo(db)
+	fileRepo := mysql.NewFileRepo(db)
+
+	svc := &userImpl{userRepo: userRepo, idGen: idGen}
+	friendSvc := &friendImpl{friendRepo: friendRepo, idGen: idGen}
+	chatRepo := mysql.NewPrivateChatRepo(db)
+	msgSvc := &messageImpl{msgRepo: msgRepo, chatRepo: chatRepo, groupRepo: groupRepo}
+	groupSvc := &groupImpl{groupRepo: groupRepo, idGen: idGen}
+	fileSvc := &fileImpl{fileRepo: fileRepo, idGen: idGen}
+
+	// Redis
+	redisAddr := envOr("REDIS_ADDR", "127.0.0.1:6379")
+	redisCli := goredis.NewClient(&goredis.Options{Addr: redisAddr})
+	onlineRepo := sdkredis.NewOnlineRepo(redisCli)
+
+	// 初始化 RSA 密钥对
+	if err := auth.InitRSA(); err != nil {
+		log.Fatalf("[API] RSA 初始化失败: %v", err)
 	}
 
 	s := trpc.NewServer()
 	pb.RegisterUserServiceService(s, svc)
+	RegisterFriendServiceService(s, friendSvc)
+	RegisterMessageServiceService(s, msgSvc)
+	RegisterGroupServiceService(s, groupSvc)
+	RegisterFileServiceService(s, fileSvc)
+	RegisterAuthServiceService(s, &authImpl{})
 
-	// 优雅关机
+	// 为 HTTP RESTful 传输注册同名服务（ServiceDesc.ServiceName 必须匹配 trpc_go.yaml HTTP 传输名）
+	s.Register(&userServiceHTTPDesc, svc)
+	s.Register(&friendServiceHTTPDesc, friendSvc)
+	s.Register(&messageServiceHTTPDesc, msgSvc)
+	s.Register(&groupServiceHTTPDesc, groupSvc)
+	s.Register(&fileServiceHTTPDesc, fileSvc)
+
+	// 额外 API（13 个新端点）
+	extraSvc := &ExtraService{
+		User:   &extraUserImpl{userRepo: userRepo},
+		Friend: &extraFriendImpl{friendRepo: friendRepo},
+		Message: &extraMessageImpl{
+			msgRepo: msgRepo, privateRepo: chatRepo,
+			groupMsgRepo: mysql.NewGroupMessageRepo(db),
+		},
+		Group: &extraGroupImpl{groupRepo: groupRepo, idGen: idGen},
+		File:  &extraFileImpl{fileRepo: fileRepo, idGen: idGen},
+		Misc: &extraMiscImpl{
+			userRepo: userRepo, fileRepo: fileRepo, groupMsgRepo: mysql.NewGroupMessageRepo(db),
+		},
+		Final: &extraFinalImpl{
+			userRepo: userRepo, friendRepo: friendRepo, privateRepo: chatRepo,
+			groupRepo: groupRepo, groupMsgRepo: mysql.NewGroupMessageRepo(db),
+			fileRepo: fileRepo, onlineRepo: onlineRepo,
+		},
+		Chat: &extraChatImpl{
+			privateRepo: chatRepo, groupRepo: groupRepo, groupMsgRepo: mysql.NewGroupMessageRepo(db),
+			onlineRepo: onlineRepo, userRepo: userRepo,
+		},
+	}
+	RegisterExtraService(s, extraSvc)
+	s.Register(&extraServiceHTTPDesc, extraSvc)
+
 	go func() {
 		ch := make(chan os.Signal, 1)
 		signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
-		log.Infof("[API服务] 收到信号 %v，正在优雅关机...", <-ch)
+		log.Infof("[API] 收到信号 %v，正在优雅关机...", <-ch)
 		s.Close(nil)
 	}()
 
-	log.Info("[API服务] 启动中...(Ctrl+C 停止)")
+	log.Info("[API] 启动中...(Ctrl+C 停止)")
 	if err := s.Serve(); err != nil {
 		log.Error(err)
 	}
-	log.Info("[API服务] 已停止")
+	log.Info("[API] 已停止")
 }

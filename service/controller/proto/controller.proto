@@ -38,9 +38,15 @@ message AuthCheckResponse {
 // ============================================================
 message RouteMessageRequest {
     string from_user_id = 1;  // 发送者
-    string to_user_id = 2;    // 接收者
+    string to_user_id = 2;    // 接收者（私聊）
     string content = 3;       // 消息内容
     string msg_id = 4;        // 客户端生成的临时消息 ID
+    string request_id = 5;    // Gateway 生成的去重 key
+    string device_id  = 6;    // 发送设备 ID
+    int64  seq        = 7;    // 客户端 seq（ACK 匹配）
+    int64  seq_id     = 8;    // Gateway 分配的会话递增序号
+    string msg_type   = 9;    // 消息类型：chat / group_chat / typing / read_receipt / delivery_ack
+    bytes  raw_body   = 10;   // 完整 JSON 帧（透传）
 }
 
 message RouteMessageResponse {

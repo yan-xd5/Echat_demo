@@ -1,0 +1,95 @@
+syntax = "proto3";
+
+package echat.api;
+
+option go_package = "echat/service/api/stub";
+
+import "trpc/api/annotations.proto";
+
+service FileService {
+    rpc Upload(UploadRequest) returns (UploadResponse) {
+        option (trpc.api.http) = {
+            post: "/api/v1/file/upload"
+            body: "*"
+        };
+    }
+    rpc Download(DownloadRequest) returns (DownloadResponse) {
+        option (trpc.api.http) = {
+            get: "/api/v1/file/download"
+        };
+    }
+    rpc Preview(PreviewRequest) returns (PreviewResponse) {
+        option (trpc.api.http) = {
+            get: "/api/v1/file/preview"
+        };
+    }
+    rpc Delete(DeleteRequest) returns (DeleteResponse) {
+        option (trpc.api.http) = {
+            delete: "/api/v1/file/{file_id}"
+        };
+    }
+    rpc ListFiles(ListFilesRequest) returns (ListFilesResponse) {
+        option (trpc.api.http) = {
+            get: "/api/v1/file/list"
+        };
+    }
+}
+
+message UploadRequest {
+    string file_name    = 1;
+    bytes  file_data    = 2;
+    string mime_type    = 3;
+    string file_type    = 4; // image/video/file/audio
+}
+
+message UploadResponse {
+    string file_id  = 1;
+    string file_url = 2;
+}
+
+message DownloadRequest {
+    string file_id = 1;
+}
+
+message DownloadResponse {
+    string file_name  = 1;
+    string mime_type  = 2;
+    bytes  file_data  = 3;
+}
+
+message PreviewRequest {
+    string file_id = 1;
+}
+
+message PreviewResponse {
+    string file_name  = 1;
+    string mime_type  = 2;
+    bytes  file_data  = 3;
+    string thumbnail  = 4; // base64 缩略图
+}
+
+message DeleteRequest {
+    string file_id = 1;
+}
+
+message DeleteResponse {}
+
+message ListFilesRequest {
+    int32 limit  = 1;
+    int32 offset = 2;
+}
+
+message FileInfo {
+    string file_id       = 1;
+    string original_name = 2;
+    string file_type     = 3;
+    int64  file_size     = 4;
+    string mime_type     = 5;
+    int64  upload_time   = 6;
+    int64  download_count = 7;
+}
+
+message ListFilesResponse {
+    repeated FileInfo files = 1;
+    int32 total = 2;
+}

@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package echat.api;
+
+option go_package = "echat/service/api/stub";
+
+import "trpc/api/annotations.proto";
+
+service MessageService {
+    rpc GetHistory(GetHistoryRequest) returns (GetHistoryResponse) {
+        option (trpc.api.http) = {
+            get: "/api/v1/message/history"
+        };
+    }
+    rpc MarkRead(MarkReadRequest) returns (MarkReadResponse) {
+        option (trpc.api.http) = {
+            post: "/api/v1/message/read"
+            body: "*"
+        };
+    }
+}
+
+message GetHistoryRequest {
+    string chat_id   = 1; // pid or gid
+    string chat_type = 2; // "single" or "group"
+    int64  before    = 3; // 分页：此时间之前的消息
+    int32  limit     = 4; // 默认 50
+}
+
+message GetHistoryResponse {
+    repeated HistoryMessage messages = 1;
+}
+
+message HistoryMessage {
+    string msg_id     = 1;
+    string sender_uid = 2;
+    string content    = 3;
+    string type       = 4;
+    int64  seq_id     = 5;
+    int64  send_time  = 6;
+}
+
+message MarkReadRequest {
+    string chat_id   = 1;
+    string chat_type = 2;
+    string msg_id    = 3; // 最后一条已读消息 ID
+}
+
+message MarkReadResponse {
+    int64 affected = 1;
+}

@@ -21,14 +21,31 @@ message User {
 // ============================================================
 // 请求 / 响应
 // ============================================================
+message RegisterRequest {
+    string account  = 1;  // 登录账号
+    string password = 2;  // 密码
+    string username = 3;  // 用户名（显示名）
+    string gender   = 4;  // 性别
+    string region   = 5;  // 地区
+    string bio      = 6;  // 简介
+    string avatar   = 7;  // 头像URL
+}
+
+message RegisterResponse {
+    string uid      = 1;
+    string account  = 2;
+    string username = 3;
+}
+
 message LoginRequest {
     string account  = 1;  // 登录账号
     string password = 2;
 }
 
 message LoginResponse {
-    string token = 1;
-    User user    = 2;
+    string token     = 1;
+    int64 expires_at = 2;  // Token 过期时间（Unix 秒）
+    User user        = 3;
 }
 
 message GetUserInfoRequest {
@@ -43,6 +60,14 @@ message GetUserInfoResponse {
 // 用户服务（对内 tRPC + 对外 HTTP）
 // ============================================================
 service UserService {
+    // POST /api/v1/user/register
+    rpc Register(RegisterRequest) returns (RegisterResponse) {
+        option (trpc.api.http) = {
+            post: "/api/v1/user/register"
+            body: "*"
+        };
+    }
+
     // POST /api/v1/user/login
     rpc Login(LoginRequest) returns (LoginResponse) {
         option (trpc.api.http) = {

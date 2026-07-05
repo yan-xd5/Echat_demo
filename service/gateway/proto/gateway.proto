@@ -13,10 +13,14 @@ service GatewayInternal {
 }
 
 message PushToUserRequest {
-    string user_id = 1;    // 目标用户
-    string msg_id  = 2;    // 消息 ID
-    string content = 3;    // 消息内容
-    string from_user_id = 4; // 发送者
+    string user_id      = 1;  // 目标用户（单播）
+    string msg_id       = 2;  // 消息 ID
+    string content      = 3;  // 消息内容
+    string from_user_id = 4;  // 发送者
+    repeated string to_user_ids = 5; // 目标用户列表（批量）
+    int64  seq_id       = 6;  // 会话递增序号
+    int64  server_time  = 7;  // 服务端时间戳（ms）
+    bytes  ext          = 8;  // 扩展字段（透传）
 }
 
 message PushToUserResponse {

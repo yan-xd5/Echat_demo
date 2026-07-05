@@ -2,18 +2,17 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v7.35.0
-// source: service/controller/proto/controller.proto
+// source: controller.proto
 
 package stub
 
 import (
 	common "echat/proto/common"
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
-
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -35,7 +34,7 @@ type AuthCheckRequest struct {
 
 func (x *AuthCheckRequest) Reset() {
 	*x = AuthCheckRequest{}
-	mi := &file_service_controller_proto_controller_proto_msgTypes[0]
+	mi := &file_controller_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -47,7 +46,7 @@ func (x *AuthCheckRequest) String() string {
 func (*AuthCheckRequest) ProtoMessage() {}
 
 func (x *AuthCheckRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_service_controller_proto_controller_proto_msgTypes[0]
+	mi := &file_controller_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -60,7 +59,7 @@ func (x *AuthCheckRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuthCheckRequest.ProtoReflect.Descriptor instead.
 func (*AuthCheckRequest) Descriptor() ([]byte, []int) {
-	return file_service_controller_proto_controller_proto_rawDescGZIP(), []int{0}
+	return file_controller_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *AuthCheckRequest) GetToken() string {
@@ -81,7 +80,7 @@ type AuthCheckResponse struct {
 
 func (x *AuthCheckResponse) Reset() {
 	*x = AuthCheckResponse{}
-	mi := &file_service_controller_proto_controller_proto_msgTypes[1]
+	mi := &file_controller_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -93,7 +92,7 @@ func (x *AuthCheckResponse) String() string {
 func (*AuthCheckResponse) ProtoMessage() {}
 
 func (x *AuthCheckResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_service_controller_proto_controller_proto_msgTypes[1]
+	mi := &file_controller_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -106,7 +105,7 @@ func (x *AuthCheckResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuthCheckResponse.ProtoReflect.Descriptor instead.
 func (*AuthCheckResponse) Descriptor() ([]byte, []int) {
-	return file_service_controller_proto_controller_proto_rawDescGZIP(), []int{1}
+	return file_controller_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *AuthCheckResponse) GetValid() bool {
@@ -136,16 +135,22 @@ func (x *AuthCheckResponse) GetReason() string {
 type RouteMessageRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	FromUserId    string                 `protobuf:"bytes,1,opt,name=from_user_id,json=fromUserId,proto3" json:"from_user_id,omitempty"` // 发送者
-	ToUserId      string                 `protobuf:"bytes,2,opt,name=to_user_id,json=toUserId,proto3" json:"to_user_id,omitempty"`       // 接收者
+	ToUserId      string                 `protobuf:"bytes,2,opt,name=to_user_id,json=toUserId,proto3" json:"to_user_id,omitempty"`       // 接收者（私聊）
 	Content       string                 `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`                           // 消息内容
 	MsgId         string                 `protobuf:"bytes,4,opt,name=msg_id,json=msgId,proto3" json:"msg_id,omitempty"`                  // 客户端生成的临时消息 ID
+	RequestId     string                 `protobuf:"bytes,5,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`      // Gateway 生成的去重 key
+	DeviceId      string                 `protobuf:"bytes,6,opt,name=device_id,json=deviceId,proto3" json:"device_id,omitempty"`         // 发送设备 ID
+	Seq           int64                  `protobuf:"varint,7,opt,name=seq,proto3" json:"seq,omitempty"`                                  // 客户端 seq（ACK 匹配）
+	SeqId         int64                  `protobuf:"varint,8,opt,name=seq_id,json=seqId,proto3" json:"seq_id,omitempty"`                 // Gateway 分配的会话递增序号
+	MsgType       string                 `protobuf:"bytes,9,opt,name=msg_type,json=msgType,proto3" json:"msg_type,omitempty"`            // 消息类型：chat / group_chat / typing / read_receipt / delivery_ack
+	RawBody       []byte                 `protobuf:"bytes,10,opt,name=raw_body,json=rawBody,proto3" json:"raw_body,omitempty"`           // 完整 JSON 帧（透传）
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RouteMessageRequest) Reset() {
 	*x = RouteMessageRequest{}
-	mi := &file_service_controller_proto_controller_proto_msgTypes[2]
+	mi := &file_controller_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -157,7 +162,7 @@ func (x *RouteMessageRequest) String() string {
 func (*RouteMessageRequest) ProtoMessage() {}
 
 func (x *RouteMessageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_service_controller_proto_controller_proto_msgTypes[2]
+	mi := &file_controller_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -170,7 +175,7 @@ func (x *RouteMessageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RouteMessageRequest.ProtoReflect.Descriptor instead.
 func (*RouteMessageRequest) Descriptor() ([]byte, []int) {
-	return file_service_controller_proto_controller_proto_rawDescGZIP(), []int{2}
+	return file_controller_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *RouteMessageRequest) GetFromUserId() string {
@@ -201,6 +206,48 @@ func (x *RouteMessageRequest) GetMsgId() string {
 	return ""
 }
 
+func (x *RouteMessageRequest) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+func (x *RouteMessageRequest) GetDeviceId() string {
+	if x != nil {
+		return x.DeviceId
+	}
+	return ""
+}
+
+func (x *RouteMessageRequest) GetSeq() int64 {
+	if x != nil {
+		return x.Seq
+	}
+	return 0
+}
+
+func (x *RouteMessageRequest) GetSeqId() int64 {
+	if x != nil {
+		return x.SeqId
+	}
+	return 0
+}
+
+func (x *RouteMessageRequest) GetMsgType() string {
+	if x != nil {
+		return x.MsgType
+	}
+	return ""
+}
+
+func (x *RouteMessageRequest) GetRawBody() []byte {
+	if x != nil {
+		return x.RawBody
+	}
+	return nil
+}
+
 type RouteMessageResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
@@ -213,7 +260,7 @@ type RouteMessageResponse struct {
 
 func (x *RouteMessageResponse) Reset() {
 	*x = RouteMessageResponse{}
-	mi := &file_service_controller_proto_controller_proto_msgTypes[3]
+	mi := &file_controller_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -225,7 +272,7 @@ func (x *RouteMessageResponse) String() string {
 func (*RouteMessageResponse) ProtoMessage() {}
 
 func (x *RouteMessageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_service_controller_proto_controller_proto_msgTypes[3]
+	mi := &file_controller_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -238,7 +285,7 @@ func (x *RouteMessageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RouteMessageResponse.ProtoReflect.Descriptor instead.
 func (*RouteMessageResponse) Descriptor() ([]byte, []int) {
-	return file_service_controller_proto_controller_proto_rawDescGZIP(), []int{3}
+	return file_controller_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *RouteMessageResponse) GetSuccess() bool {
@@ -283,7 +330,7 @@ type UpdateStatusRequest struct {
 
 func (x *UpdateStatusRequest) Reset() {
 	*x = UpdateStatusRequest{}
-	mi := &file_service_controller_proto_controller_proto_msgTypes[4]
+	mi := &file_controller_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -295,7 +342,7 @@ func (x *UpdateStatusRequest) String() string {
 func (*UpdateStatusRequest) ProtoMessage() {}
 
 func (x *UpdateStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_service_controller_proto_controller_proto_msgTypes[4]
+	mi := &file_controller_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -308,7 +355,7 @@ func (x *UpdateStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateStatusRequest.ProtoReflect.Descriptor instead.
 func (*UpdateStatusRequest) Descriptor() ([]byte, []int) {
-	return file_service_controller_proto_controller_proto_rawDescGZIP(), []int{4}
+	return file_controller_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *UpdateStatusRequest) GetUserId() string {
@@ -340,7 +387,7 @@ type UpdateStatusResponse struct {
 
 func (x *UpdateStatusResponse) Reset() {
 	*x = UpdateStatusResponse{}
-	mi := &file_service_controller_proto_controller_proto_msgTypes[5]
+	mi := &file_controller_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -352,7 +399,7 @@ func (x *UpdateStatusResponse) String() string {
 func (*UpdateStatusResponse) ProtoMessage() {}
 
 func (x *UpdateStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_service_controller_proto_controller_proto_msgTypes[5]
+	mi := &file_controller_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -365,27 +412,35 @@ func (x *UpdateStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateStatusResponse.ProtoReflect.Descriptor instead.
 func (*UpdateStatusResponse) Descriptor() ([]byte, []int) {
-	return file_service_controller_proto_controller_proto_rawDescGZIP(), []int{5}
+	return file_controller_proto_rawDescGZIP(), []int{5}
 }
 
-var File_service_controller_proto_controller_proto protoreflect.FileDescriptor
+var File_controller_proto protoreflect.FileDescriptor
 
-const file_service_controller_proto_controller_proto_rawDesc = "" +
+const file_controller_proto_rawDesc = "" +
 	"\n" +
-	")service/controller/proto/controller.proto\x12\x10echat.controller\x1a\x13common/common.proto\"(\n" +
+	"\x10controller.proto\x12\x10echat.controller\x1a\x13common/common.proto\"(\n" +
 	"\x10AuthCheckRequest\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\"Z\n" +
 	"\x11AuthCheckResponse\x12\x14\n" +
 	"\x05valid\x18\x01 \x01(\bR\x05valid\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x16\n" +
-	"\x06reason\x18\x03 \x01(\tR\x06reason\"\x86\x01\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\"\xa1\x02\n" +
 	"\x13RouteMessageRequest\x12 \n" +
 	"\ffrom_user_id\x18\x01 \x01(\tR\n" +
 	"fromUserId\x12\x1c\n" +
 	"\n" +
 	"to_user_id\x18\x02 \x01(\tR\btoUserId\x12\x18\n" +
 	"\acontent\x18\x03 \x01(\tR\acontent\x12\x15\n" +
-	"\x06msg_id\x18\x04 \x01(\tR\x05msgId\"\x80\x01\n" +
+	"\x06msg_id\x18\x04 \x01(\tR\x05msgId\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x05 \x01(\tR\trequestId\x12\x1b\n" +
+	"\tdevice_id\x18\x06 \x01(\tR\bdeviceId\x12\x10\n" +
+	"\x03seq\x18\a \x01(\x03R\x03seq\x12\x15\n" +
+	"\x06seq_id\x18\b \x01(\x03R\x05seqId\x12\x19\n" +
+	"\bmsg_type\x18\t \x01(\tR\amsgType\x12\x19\n" +
+	"\braw_body\x18\n" +
+	" \x01(\fR\arawBody\"\x80\x01\n" +
 	"\x14RouteMessageResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x15\n" +
 	"\x06msg_id\x18\x02 \x01(\tR\x05msgId\x12\x1f\n" +
@@ -404,19 +459,19 @@ const file_service_controller_proto_controller_proto_rawDesc = "" +
 	"\fUpdateStatus\x12%.echat.controller.UpdateStatusRequest\x1a&.echat.controller.UpdateStatusResponseB\x1fZ\x1dechat/service/controller/stubb\x06proto3"
 
 var (
-	file_service_controller_proto_controller_proto_rawDescOnce sync.Once
-	file_service_controller_proto_controller_proto_rawDescData []byte
+	file_controller_proto_rawDescOnce sync.Once
+	file_controller_proto_rawDescData []byte
 )
 
-func file_service_controller_proto_controller_proto_rawDescGZIP() []byte {
-	file_service_controller_proto_controller_proto_rawDescOnce.Do(func() {
-		file_service_controller_proto_controller_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_service_controller_proto_controller_proto_rawDesc), len(file_service_controller_proto_controller_proto_rawDesc)))
+func file_controller_proto_rawDescGZIP() []byte {
+	file_controller_proto_rawDescOnce.Do(func() {
+		file_controller_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_controller_proto_rawDesc), len(file_controller_proto_rawDesc)))
 	})
-	return file_service_controller_proto_controller_proto_rawDescData
+	return file_controller_proto_rawDescData
 }
 
-var file_service_controller_proto_controller_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
-var file_service_controller_proto_controller_proto_goTypes = []any{
+var file_controller_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_controller_proto_goTypes = []any{
 	(*AuthCheckRequest)(nil),     // 0: echat.controller.AuthCheckRequest
 	(*AuthCheckResponse)(nil),    // 1: echat.controller.AuthCheckResponse
 	(*RouteMessageRequest)(nil),  // 2: echat.controller.RouteMessageRequest
@@ -425,7 +480,7 @@ var file_service_controller_proto_controller_proto_goTypes = []any{
 	(*UpdateStatusResponse)(nil), // 5: echat.controller.UpdateStatusResponse
 	(common.OnlineStatus)(0),     // 6: common.OnlineStatus
 }
-var file_service_controller_proto_controller_proto_depIdxs = []int32{
+var file_controller_proto_depIdxs = []int32{
 	6, // 0: echat.controller.UpdateStatusRequest.status:type_name -> common.OnlineStatus
 	0, // 1: echat.controller.ControllerService.AuthCheck:input_type -> echat.controller.AuthCheckRequest
 	2, // 2: echat.controller.ControllerService.RouteMessage:input_type -> echat.controller.RouteMessageRequest
@@ -440,26 +495,26 @@ var file_service_controller_proto_controller_proto_depIdxs = []int32{
 	0, // [0:1] is the sub-list for field type_name
 }
 
-func init() { file_service_controller_proto_controller_proto_init() }
-func file_service_controller_proto_controller_proto_init() {
-	if File_service_controller_proto_controller_proto != nil {
+func init() { file_controller_proto_init() }
+func file_controller_proto_init() {
+	if File_controller_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_service_controller_proto_controller_proto_rawDesc), len(file_service_controller_proto_controller_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_controller_proto_rawDesc), len(file_controller_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_service_controller_proto_controller_proto_goTypes,
-		DependencyIndexes: file_service_controller_proto_controller_proto_depIdxs,
-		MessageInfos:      file_service_controller_proto_controller_proto_msgTypes,
+		GoTypes:           file_controller_proto_goTypes,
+		DependencyIndexes: file_controller_proto_depIdxs,
+		MessageInfos:      file_controller_proto_msgTypes,
 	}.Build()
-	File_service_controller_proto_controller_proto = out.File
-	file_service_controller_proto_controller_proto_goTypes = nil
-	file_service_controller_proto_controller_proto_depIdxs = nil
+	File_controller_proto = out.File
+	file_controller_proto_goTypes = nil
+	file_controller_proto_depIdxs = nil
 }

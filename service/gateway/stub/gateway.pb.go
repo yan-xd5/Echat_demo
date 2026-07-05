@@ -2,17 +2,16 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v7.35.0
-// source: service/gateway/proto/gateway.proto
+// source: gateway.proto
 
 package stub
 
 import (
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
-
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -24,17 +23,21 @@ const (
 
 type PushToUserRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`               // 目标用户
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`               // 目标用户（单播）
 	MsgId         string                 `protobuf:"bytes,2,opt,name=msg_id,json=msgId,proto3" json:"msg_id,omitempty"`                  // 消息 ID
 	Content       string                 `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`                           // 消息内容
 	FromUserId    string                 `protobuf:"bytes,4,opt,name=from_user_id,json=fromUserId,proto3" json:"from_user_id,omitempty"` // 发送者
+	ToUserIds     []string               `protobuf:"bytes,5,rep,name=to_user_ids,json=toUserIds,proto3" json:"to_user_ids,omitempty"`    // 目标用户列表（批量）
+	SeqId         int64                  `protobuf:"varint,6,opt,name=seq_id,json=seqId,proto3" json:"seq_id,omitempty"`                 // 会话递增序号
+	ServerTime    int64                  `protobuf:"varint,7,opt,name=server_time,json=serverTime,proto3" json:"server_time,omitempty"`  // 服务端时间戳（ms）
+	Ext           []byte                 `protobuf:"bytes,8,opt,name=ext,proto3" json:"ext,omitempty"`                                   // 扩展字段（透传）
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PushToUserRequest) Reset() {
 	*x = PushToUserRequest{}
-	mi := &file_service_gateway_proto_gateway_proto_msgTypes[0]
+	mi := &file_gateway_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -46,7 +49,7 @@ func (x *PushToUserRequest) String() string {
 func (*PushToUserRequest) ProtoMessage() {}
 
 func (x *PushToUserRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_service_gateway_proto_gateway_proto_msgTypes[0]
+	mi := &file_gateway_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -59,7 +62,7 @@ func (x *PushToUserRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PushToUserRequest.ProtoReflect.Descriptor instead.
 func (*PushToUserRequest) Descriptor() ([]byte, []int) {
-	return file_service_gateway_proto_gateway_proto_rawDescGZIP(), []int{0}
+	return file_gateway_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *PushToUserRequest) GetUserId() string {
@@ -90,6 +93,34 @@ func (x *PushToUserRequest) GetFromUserId() string {
 	return ""
 }
 
+func (x *PushToUserRequest) GetToUserIds() []string {
+	if x != nil {
+		return x.ToUserIds
+	}
+	return nil
+}
+
+func (x *PushToUserRequest) GetSeqId() int64 {
+	if x != nil {
+		return x.SeqId
+	}
+	return 0
+}
+
+func (x *PushToUserRequest) GetServerTime() int64 {
+	if x != nil {
+		return x.ServerTime
+	}
+	return 0
+}
+
+func (x *PushToUserRequest) GetExt() []byte {
+	if x != nil {
+		return x.Ext
+	}
+	return nil
+}
+
 type PushToUserResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Delivered     bool                   `protobuf:"varint,1,opt,name=delivered,proto3" json:"delivered,omitempty"` // 是否成功投递
@@ -100,7 +131,7 @@ type PushToUserResponse struct {
 
 func (x *PushToUserResponse) Reset() {
 	*x = PushToUserResponse{}
-	mi := &file_service_gateway_proto_gateway_proto_msgTypes[1]
+	mi := &file_gateway_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -112,7 +143,7 @@ func (x *PushToUserResponse) String() string {
 func (*PushToUserResponse) ProtoMessage() {}
 
 func (x *PushToUserResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_service_gateway_proto_gateway_proto_msgTypes[1]
+	mi := &file_gateway_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -125,7 +156,7 @@ func (x *PushToUserResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PushToUserResponse.ProtoReflect.Descriptor instead.
 func (*PushToUserResponse) Descriptor() ([]byte, []int) {
-	return file_service_gateway_proto_gateway_proto_rawDescGZIP(), []int{1}
+	return file_gateway_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *PushToUserResponse) GetDelivered() bool {
@@ -142,17 +173,22 @@ func (x *PushToUserResponse) GetReason() string {
 	return ""
 }
 
-var File_service_gateway_proto_gateway_proto protoreflect.FileDescriptor
+var File_gateway_proto protoreflect.FileDescriptor
 
-const file_service_gateway_proto_gateway_proto_rawDesc = "" +
+const file_gateway_proto_rawDesc = "" +
 	"\n" +
-	"#service/gateway/proto/gateway.proto\x12\rechat.gateway\"\x7f\n" +
+	"\rgateway.proto\x12\rechat.gateway\"\xe9\x01\n" +
 	"\x11PushToUserRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x15\n" +
 	"\x06msg_id\x18\x02 \x01(\tR\x05msgId\x12\x18\n" +
 	"\acontent\x18\x03 \x01(\tR\acontent\x12 \n" +
 	"\ffrom_user_id\x18\x04 \x01(\tR\n" +
-	"fromUserId\"J\n" +
+	"fromUserId\x12\x1e\n" +
+	"\vto_user_ids\x18\x05 \x03(\tR\ttoUserIds\x12\x15\n" +
+	"\x06seq_id\x18\x06 \x01(\x03R\x05seqId\x12\x1f\n" +
+	"\vserver_time\x18\a \x01(\x03R\n" +
+	"serverTime\x12\x10\n" +
+	"\x03ext\x18\b \x01(\fR\x03ext\"J\n" +
 	"\x12PushToUserResponse\x12\x1c\n" +
 	"\tdelivered\x18\x01 \x01(\bR\tdelivered\x12\x16\n" +
 	"\x06reason\x18\x02 \x01(\tR\x06reason2d\n" +
@@ -161,23 +197,23 @@ const file_service_gateway_proto_gateway_proto_rawDesc = "" +
 	"PushToUser\x12 .echat.gateway.PushToUserRequest\x1a!.echat.gateway.PushToUserResponseB\x1cZ\x1aechat/service/gateway/stubb\x06proto3"
 
 var (
-	file_service_gateway_proto_gateway_proto_rawDescOnce sync.Once
-	file_service_gateway_proto_gateway_proto_rawDescData []byte
+	file_gateway_proto_rawDescOnce sync.Once
+	file_gateway_proto_rawDescData []byte
 )
 
-func file_service_gateway_proto_gateway_proto_rawDescGZIP() []byte {
-	file_service_gateway_proto_gateway_proto_rawDescOnce.Do(func() {
-		file_service_gateway_proto_gateway_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_service_gateway_proto_gateway_proto_rawDesc), len(file_service_gateway_proto_gateway_proto_rawDesc)))
+func file_gateway_proto_rawDescGZIP() []byte {
+	file_gateway_proto_rawDescOnce.Do(func() {
+		file_gateway_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_gateway_proto_rawDesc), len(file_gateway_proto_rawDesc)))
 	})
-	return file_service_gateway_proto_gateway_proto_rawDescData
+	return file_gateway_proto_rawDescData
 }
 
-var file_service_gateway_proto_gateway_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
-var file_service_gateway_proto_gateway_proto_goTypes = []any{
+var file_gateway_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_gateway_proto_goTypes = []any{
 	(*PushToUserRequest)(nil),  // 0: echat.gateway.PushToUserRequest
 	(*PushToUserResponse)(nil), // 1: echat.gateway.PushToUserResponse
 }
-var file_service_gateway_proto_gateway_proto_depIdxs = []int32{
+var file_gateway_proto_depIdxs = []int32{
 	0, // 0: echat.gateway.GatewayInternal.PushToUser:input_type -> echat.gateway.PushToUserRequest
 	1, // 1: echat.gateway.GatewayInternal.PushToUser:output_type -> echat.gateway.PushToUserResponse
 	1, // [1:2] is the sub-list for method output_type
@@ -187,26 +223,26 @@ var file_service_gateway_proto_gateway_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for field type_name
 }
 
-func init() { file_service_gateway_proto_gateway_proto_init() }
-func file_service_gateway_proto_gateway_proto_init() {
-	if File_service_gateway_proto_gateway_proto != nil {
+func init() { file_gateway_proto_init() }
+func file_gateway_proto_init() {
+	if File_gateway_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_service_gateway_proto_gateway_proto_rawDesc), len(file_service_gateway_proto_gateway_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_gateway_proto_rawDesc), len(file_gateway_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_service_gateway_proto_gateway_proto_goTypes,
-		DependencyIndexes: file_service_gateway_proto_gateway_proto_depIdxs,
-		MessageInfos:      file_service_gateway_proto_gateway_proto_msgTypes,
+		GoTypes:           file_gateway_proto_goTypes,
+		DependencyIndexes: file_gateway_proto_depIdxs,
+		MessageInfos:      file_gateway_proto_msgTypes,
 	}.Build()
-	File_service_gateway_proto_gateway_proto = out.File
-	file_service_gateway_proto_gateway_proto_goTypes = nil
-	file_service_gateway_proto_gateway_proto_depIdxs = nil
+	File_gateway_proto = out.File
+	file_gateway_proto_goTypes = nil
+	file_gateway_proto_depIdxs = nil
 }
