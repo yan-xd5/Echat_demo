@@ -81,15 +81,15 @@ func (e *Entry) parseMessage(ctx context.Context, req *ctrlpb.RouteMessageReques
 	}
 
 	var raw struct {
-		To          string `json:"to"`
-		GroupID     string `json:"group_id"`
-		Content     string `json:"content"`
-		ContentType string `json:"content_type"`
+		To          string          `json:"to"`
+		GroupID     string          `json:"group_id"`
+		Content     json.RawMessage `json:"content"`      // 可能是字符串或嵌套对象 {"text":"..."}
+		ContentType string          `json:"content_type"`
 	}
 	if json.Unmarshal(req.RawBody, &raw) == nil {
 		msg.ToUID = raw.To
 		msg.GroupID = raw.GroupID
-		msg.Content = []byte(raw.Content)
+		msg.Content = raw.Content // json.RawMessage → []byte 直接赋值
 		if raw.ContentType != "" {
 			msg.Ext["content_type"] = raw.ContentType
 		}

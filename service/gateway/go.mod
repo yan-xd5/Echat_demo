@@ -1,14 +1,14 @@
 module echat/service/gateway
 
-go 1.24.2
+go 1.25.0
 
 require (
 	echat/sdk v0.0.0
 	github.com/gorilla/websocket v1.5.3
-	github.com/polarismesh/polaris-go v1.5.5
 	github.com/redis/go-redis/v9 v9.5.1
 	google.golang.org/protobuf v1.36.11
-	trpc.group/trpc-go/trpc-go v1.0.3
+	trpc.group/trpc-go/trpc-database/goredis v1.0.0
+	trpc.group/trpc-go/trpc-go v1.0.4
 	trpc.group/trpc-go/trpc-naming-polarismesh v1.0.0
 	trpc.group/trpc-go/trpc-opentelemetry/oteltrpc v1.0.2
 )
@@ -54,7 +54,9 @@ require (
 	github.com/mozillazg/go-pinyin v0.18.0 // indirect
 	github.com/natefinch/lumberjack v2.0.0+incompatible // indirect
 	github.com/panjf2000/ants/v2 v2.4.6 // indirect
+	github.com/pierrec/lz4/v4 v4.1.21 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/polarismesh/polaris-go v1.5.5 // indirect
 	github.com/polarismesh/specification v1.4.1 // indirect
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
 	github.com/prometheus/client_golang v1.12.2 // indirect
@@ -86,14 +88,14 @@ require (
 	go.opentelemetry.io/otel/trace v1.16.0 // indirect
 	go.opentelemetry.io/proto/otlp v0.19.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
-	go.uber.org/automaxprocs v1.3.0 // indirect
+	go.uber.org/automaxprocs v1.5.2 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.24.0 // indirect
-	golang.org/x/crypto v0.41.0 // indirect
-	golang.org/x/net v0.43.0 // indirect
-	golang.org/x/sync v0.16.0 // indirect
-	golang.org/x/sys v0.35.0 // indirect
-	golang.org/x/text v0.28.0 // indirect
+	golang.org/x/crypto v0.53.0 // indirect
+	golang.org/x/net v0.55.0 // indirect
+	golang.org/x/sync v0.21.0 // indirect
+	golang.org/x/sys v0.46.0 // indirect
+	golang.org/x/text v0.38.0 // indirect
 	google.golang.org/genproto v0.0.0-20230306155012-7f2fa6fef1f4 // indirect
 	google.golang.org/grpc v1.55.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect

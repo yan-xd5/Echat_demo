@@ -21,7 +21,7 @@ import (
 )
 
 func main() {
-	dsn := "root:sysu@tcp(127.0.0.1:3306)/chat?charset=utf8mb4&parseTime=true"
+	dsn := envOr("MYSQL_DSN", "root:@tcp(127.0.0.1:3306)/chat?charset=utf8mb4&parseTime=true")
 	db, err := mysql.NewDB(dsn)
 	if err != nil {
 		log.Fatal("❌ MySQL 连接失败:", err)
@@ -110,4 +110,11 @@ func main() {
 	default:
 		fmt.Printf("\n⚠️  未知响应: %v\n", ack["type"])
 	}
+}
+
+func envOr(k, fallback string) string {
+	if v := os.Getenv(k); v != "" {
+		return v
+	}
+	return fallback
 }

@@ -10,8 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/polarismesh/polaris-go/api"
-	"github.com/polarismesh/polaris-go/pkg/model"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -57,61 +55,59 @@ func Hash(s string) uint32 {
 }
 
 // ============================================================
-// SessionRouter — Polaris 一致性哈希路由
+// SessionRouter — 一致性哈希路由
 // ============================================================
 
 const vnodesPerInstance = 150 // 每实例虚拟节点数
 
-// SessionRouter 基于 Polaris 实例 ID 的一致性哈希路由器。
+// SessionRouter 基于服务实例的一致性哈希路由器。
 type SessionRouter struct {
-	consumer    api.ConsumerAPI
-	mu          sync.RWMutex
-	hashRing    map[uint32]string          // hash → instanceID
-	hashKeys    []uint32                   // 排序的哈希值（二分查找）
-	instanceMap map[string]model.Instance  // instanceID → Instance
+	discovery ServiceDiscovery
+	mu        sync.RWMutex
+	hashRing  map[uint32]string       // hash → instanceID
+	hashKeys  []uint32                // 排序的哈希值（二分查找）
+	addrMap   map[string]string       // instanceID → address (ip:port)
 }
 
 // NewSessionRouter 创建会话路由器。
-func NewSessionRouter(consumer api.ConsumerAPI) *SessionRouter {
-	return &SessionRouter{consumer: consumer}
+func NewSessionRouter(discovery ServiceDiscovery) *SessionRouter {
+	return &SessionRouter{discovery: discovery}
 }
 
 // Resolve 根据 sessionID 路由到 Controller 实例地址。
 func (r *SessionRouter) Resolve(sessionID string) (string, error) {
-	resp, err := r.consumer.GetAllInstances(&api.GetAllInstancesRequest{
-		GetAllInstancesRequest: model.GetAllInstancesRequest{
-			Namespace: "default",
-			Service:   "echat.controller.ControllerService",
-		},
-	})
+	instances, err := r.discovery.GetInstances("echat.controller.ControllerService")
 	if err != nil {
-		return "", fmt.Errorf("resolve: %w", err)
+		return "", fmt.Errorf("resolve(%s): %w", sessionID, err)
+	}
+	if len(instances) == 0 {
+		return "", fmt.Errorf("no controller instances available")
 	}
 
 	r.mu.Lock()
-	r.buildRing(resp.Instances)
+	r.buildRing(instances)
 	instID := r.lookup(sessionID)
-	inst := r.instanceMap[instID]
+	addr := r.addrMap[instID]
 	r.mu.Unlock()
 
-	if inst == nil {
+	if addr == "" {
 		return "", fmt.Errorf("no instance for session %s", sessionID)
 	}
-	return fmt.Sprintf("ip://%s:%d", inst.GetHost(), inst.GetPort()), nil
+	return "ip://" + addr, nil
 }
 
-// buildRing 用 Polaris 实例 ID 构建一致性哈希环。
-func (r *SessionRouter) buildRing(instances []model.Instance) {
+// buildRing 用服务实例构建一致性哈希环。
+func (r *SessionRouter) buildRing(instances []ServiceInstance) {
 	r.hashRing = make(map[uint32]string)
 	r.hashKeys = make([]uint32, 0, len(instances)*vnodesPerInstance)
-	r.instanceMap = make(map[string]model.Instance)
+	r.addrMap = make(map[string]string)
 
 	for _, inst := range instances {
-		if !inst.IsHealthy() {
-			continue
+		id := inst.ID
+		if id == "" {
+			id = inst.Address // 兜底用 address 作 ID
 		}
-		id := inst.GetId()
-		r.instanceMap[id] = inst
+		r.addrMap[id] = inst.Address
 
 		for i := 0; i < vnodesPerInstance; i++ {
 			h := Hash(fmt.Sprintf("%s#%d", id, i))

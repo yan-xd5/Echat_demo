@@ -1,0 +1,15 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # 从 OTel Collector 拉取应用指标
+  - job_name: 'echat-otel'
+    static_configs:
+      - targets: ['otel-collector:8889']
+    metrics_path: /metrics
+
+  # 可选：直接从服务拉取 Prometheus 指标
+  # - job_name: 'echat-api'
+  #   static_configs:
+  #     - targets: ['host.docker.internal:9091']

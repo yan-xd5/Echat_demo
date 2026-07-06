@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	goredis "github.com/redis/go-redis/v9"
+	redis "github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 
 	sdkredis "echat/sdk/redis"
@@ -18,18 +18,21 @@ import (
 	_ "trpc.group/trpc-go/trpc-naming-polarismesh"
 	_ "trpc.group/trpc-go/trpc-naming-polarismesh/registry"
 	"trpc.group/trpc-go/trpc-go/log"
+	"trpc.group/trpc-go/trpc-database/goredis"
 
 	"echat/sdk/auth"
 	"echat/sdk/entity"
 	"echat/sdk/idgen"
 	"echat/sdk/mysql"
+	"echat/sdk/observability"
 	pb "echat/service/api/stub"
 )
 
 type userImpl struct {
 	pb.UnimplementedUserService
-	userRepo *mysql.UserRepo
-	idGen    *idgen.Snowflake
+	userRepo   *mysql.UserRepo
+	friendRepo *mysql.FriendRepo
+	idGen      *idgen.Snowflake
 }
 
 func (s *userImpl) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.RegisterResponse, error) {
@@ -95,6 +98,14 @@ func (s *userImpl) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginRe
 }
 
 func (s *userImpl) GetUserInfo(ctx context.Context, req *pb.GetUserInfoRequest) (*pb.GetUserInfoResponse, error) {
+	// 隐私校验：仅本人或好友可查看完整档案
+	requester := getUID(ctx)
+	if requester != "" && requester != req.Uid {
+		friendship, _ := s.friendRepo.FindFriendshipByUsers(ctx, requester, req.Uid)
+		if friendship == nil {
+			return nil, fmt.Errorf("无权查看该用户档案")
+		}
+	}
 	u, err := s.userRepo.FindUserByUID(ctx, req.Uid)
 	if err != nil {
 		return nil, fmt.Errorf("用户不存在")
@@ -109,6 +120,9 @@ func (s *userImpl) GetUserInfo(ctx context.Context, req *pb.GetUserInfoRequest) 
 }
 
 func main() {
+	// ① tRPC 框架初始化（必须在 goredis.New 之前，否则 client 配置未加载）
+	s := trpc.NewServer()
+
 	dsn := GetDSN()
 	db, err := mysql.NewDB(dsn)
 	if err != nil {
@@ -133,16 +147,22 @@ func main() {
 	groupRepo := mysql.NewGroupRepo(db)
 	fileRepo := mysql.NewFileRepo(db)
 
-	svc := &userImpl{userRepo: userRepo, idGen: idGen}
+	svc := &userImpl{userRepo: userRepo, friendRepo: friendRepo, idGen: idGen}
 	friendSvc := &friendImpl{friendRepo: friendRepo, idGen: idGen}
 	chatRepo := mysql.NewPrivateChatRepo(db)
 	msgSvc := &messageImpl{msgRepo: msgRepo, chatRepo: chatRepo, groupRepo: groupRepo}
 	groupSvc := &groupImpl{groupRepo: groupRepo, idGen: idGen}
 	fileSvc := &fileImpl{fileRepo: fileRepo, idGen: idGen}
 
-	// Redis
-	redisAddr := envOr("REDIS_ADDR", "127.0.0.1:6379")
-	redisCli := goredis.NewClient(&goredis.Options{Addr: redisAddr})
+	// Redis（统一走 tRPC 框架）
+	universalCli, err := goredis.New("echat.redis.service")
+	if err != nil {
+		log.Fatalf("[API] Redis 初始化失败: %v", err)
+	}
+	redisCli, ok := universalCli.(*redis.Client)
+	if !ok {
+		log.Fatalf("[API] Redis 客户端类型异常")
+	}
 	onlineRepo := sdkredis.NewOnlineRepo(redisCli)
 
 	// 初始化 RSA 密钥对
@@ -150,7 +170,27 @@ func main() {
 		log.Fatalf("[API] RSA 初始化失败: %v", err)
 	}
 
-	s := trpc.NewServer()
+	// ─── 观测: Metrics + Profiling ───
+	obsShutdown, err := observability.Init(observability.InitConfig{
+		ServiceName:    "echat-api",
+		ServiceVersion: "1.0.0",
+		OTLPEndpoint:   envOr("OTEL_EXPORTER_OTLP_ENDPOINT", "http://127.0.0.1:4318"),
+		PprofPort:      6061,
+	})
+	if err != nil {
+		log.Warnf("[API] 观测初始化失败 (metrics): %v", err)
+	}
+	if obsShutdown != nil {
+		defer func() {
+			if err := obsShutdown(context.Background()); err != nil {
+				log.Warnf("[API] 观测关闭失败: %v", err)
+			}
+		}()
+	}
+	if err := observability.InitBusinessMetrics(); err != nil {
+		log.Warnf("[API] 业务指标初始化失败: %v", err)
+	}
+
 	pb.RegisterUserServiceService(s, svc)
 	RegisterFriendServiceService(s, friendSvc)
 	RegisterMessageServiceService(s, msgSvc)

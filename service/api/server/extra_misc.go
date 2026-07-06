@@ -20,7 +20,7 @@ type extraMiscImpl struct {
 func (s *extraMiscImpl) BatchGetUsers(ctx context.Context) {
 	w, r := thttp.Response(ctx), thttp.Request(ctx)
 	if getUID(ctx) == "" {
-		writeJSON(w, 401, map[string]interface{}{"code": 1, "message": "未登录"})
+		writeJSON(ctx, w, 401, map[string]interface{}{"code": 1, "message": "未登录"})
 		return
 	}
 	var req struct {
@@ -28,12 +28,12 @@ func (s *extraMiscImpl) BatchGetUsers(ctx context.Context) {
 	}
 	json.NewDecoder(r.Body).Decode(&req)
 	if len(req.Uids) == 0 {
-		writeJSON(w, 400, map[string]interface{}{"code": 1, "message": "参数错误"})
+		writeJSON(ctx, w, 400, map[string]interface{}{"code": 1, "message": "参数错误"})
 		return
 	}
 	users, err := s.userRepo.FindUsersByUIDs(ctx, req.Uids)
 	if err != nil {
-		writeJSON(w, 500, map[string]interface{}{"code": 999, "message": err.Error()})
+		writeJSON(ctx, w, 500, map[string]interface{}{"code": 999, "message": err.Error()})
 		return
 	}
 	type userInfo struct {
@@ -49,7 +49,7 @@ func (s *extraMiscImpl) BatchGetUsers(ctx context.Context) {
 			Avatar: entity.PtrVal(u.Avatar),
 		})
 	}
-	writeJSON(w, 200, map[string]interface{}{"code": 0, "users": list})
+	writeJSON(ctx, w, 200, map[string]interface{}{"code": 0, "users": list})
 }
 
 // RevokeFilePermission 撤销文件权限。
@@ -57,7 +57,7 @@ func (s *extraMiscImpl) RevokeFilePermission(ctx context.Context) {
 	w, r := thttp.Response(ctx), thttp.Request(ctx)
 	uid := getUID(ctx)
 	if uid == "" {
-		writeJSON(w, 401, map[string]interface{}{"code": 1, "message": "未登录"})
+		writeJSON(ctx, w, 401, map[string]interface{}{"code": 1, "message": "未登录"})
 		return
 	}
 	var req struct {
@@ -66,27 +66,27 @@ func (s *extraMiscImpl) RevokeFilePermission(ctx context.Context) {
 		TargetId   string `json:"target_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.FileId == "" {
-		writeJSON(w, 400, map[string]interface{}{"code": 1, "message": "参数错误"})
+		writeJSON(ctx, w, 400, map[string]interface{}{"code": 1, "message": "参数错误"})
 		return
 	}
 	meta, _ := s.fileRepo.FindFileMetadataByID(ctx, req.FileId)
 	if meta == nil || meta.OwnerUID != uid {
-		writeJSON(w, 403, map[string]interface{}{"code": 1, "message": "无权操作"})
+		writeJSON(ctx, w, 403, map[string]interface{}{"code": 1, "message": "无权操作"})
 		return
 	}
 	n, err := s.fileRepo.RevokeFilePermission(ctx, req.FileId, entity.AccessType(req.AccessType), req.TargetId)
 	if err != nil {
-		writeJSON(w, 500, map[string]interface{}{"code": 999, "message": err.Error()})
+		writeJSON(ctx, w, 500, map[string]interface{}{"code": 999, "message": err.Error()})
 		return
 	}
-	writeJSON(w, 200, map[string]interface{}{"code": 0, "affected": n})
+	writeJSON(ctx, w, 200, map[string]interface{}{"code": 0, "affected": n})
 }
 
 // GetFileAssociations 获取文件关联列表。
 func (s *extraMiscImpl) GetFileAssociations(ctx context.Context) {
 	w, r := thttp.Response(ctx), thttp.Request(ctx)
 	if getUID(ctx) == "" {
-		writeJSON(w, 401, map[string]interface{}{"code": 1, "message": "未登录"})
+		writeJSON(ctx, w, 401, map[string]interface{}{"code": 1, "message": "未登录"})
 		return
 	}
 	var req struct {
@@ -103,11 +103,11 @@ func (s *extraMiscImpl) GetFileAssociations(ctx context.Context) {
 	} else if req.AssociationType != "" && req.AssociatedId != "" {
 		assocs, err = s.fileRepo.FindFilesByAssociation(ctx, entity.AssociationType(req.AssociationType), req.AssociatedId)
 	} else {
-		writeJSON(w, 400, map[string]interface{}{"code": 1, "message": "参数错误"})
+		writeJSON(ctx, w, 400, map[string]interface{}{"code": 1, "message": "参数错误"})
 		return
 	}
 	if err != nil {
-		writeJSON(w, 500, map[string]interface{}{"code": 999, "message": err.Error()})
+		writeJSON(ctx, w, 500, map[string]interface{}{"code": 999, "message": err.Error()})
 		return
 	}
 	type assocInfo struct {
@@ -130,7 +130,7 @@ func (s *extraMiscImpl) GetFileAssociations(ctx context.Context) {
 			CreatorUid: a.CreatorUID, CreateTime: ct,
 		})
 	}
-	writeJSON(w, 200, map[string]interface{}{"code": 0, "associations": list})
+	writeJSON(ctx, w, 200, map[string]interface{}{"code": 0, "associations": list})
 }
 
 // CreateFileAssociation 创建文件关联。
@@ -138,7 +138,7 @@ func (s *extraMiscImpl) CreateFileAssociation(ctx context.Context) {
 	w, r := thttp.Response(ctx), thttp.Request(ctx)
 	uid := getUID(ctx)
 	if uid == "" {
-		writeJSON(w, 401, map[string]interface{}{"code": 1, "message": "未登录"})
+		writeJSON(ctx, w, 401, map[string]interface{}{"code": 1, "message": "未登录"})
 		return
 	}
 	var req struct {
@@ -147,7 +147,7 @@ func (s *extraMiscImpl) CreateFileAssociation(ctx context.Context) {
 		AssociatedId    string `json:"associated_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.FileId == "" || req.AssociatedId == "" {
-		writeJSON(w, 400, map[string]interface{}{"code": 1, "message": "参数错误"})
+		writeJSON(ctx, w, 400, map[string]interface{}{"code": 1, "message": "参数错误"})
 		return
 	}
 	assocID := req.FileId[:8] + "_" + req.AssociatedId
@@ -159,17 +159,17 @@ func (s *extraMiscImpl) CreateFileAssociation(ctx context.Context) {
 		AssociationType: entity.AssociationType(req.AssociationType),
 		AssociatedID: req.AssociatedId, CreatorUID: uid,
 	}); err != nil {
-		writeJSON(w, 500, map[string]interface{}{"code": 999, "message": err.Error()})
+		writeJSON(ctx, w, 500, map[string]interface{}{"code": 999, "message": err.Error()})
 		return
 	}
-	writeJSON(w, 200, map[string]interface{}{"code": 0, "message": "已关联", "association_id": assocID})
+	writeJSON(ctx, w, 200, map[string]interface{}{"code": 0, "message": "已关联", "association_id": assocID})
 }
 
 // GetMessageReadCounts 查询消息已读人数。
 func (s *extraMiscImpl) GetMessageReadCounts(ctx context.Context) {
 	w, r := thttp.Response(ctx), thttp.Request(ctx)
 	if getUID(ctx) == "" {
-		writeJSON(w, 401, map[string]interface{}{"code": 1, "message": "未登录"})
+		writeJSON(ctx, w, 401, map[string]interface{}{"code": 1, "message": "未登录"})
 		return
 	}
 	var req struct {
@@ -177,14 +177,14 @@ func (s *extraMiscImpl) GetMessageReadCounts(ctx context.Context) {
 	}
 	json.NewDecoder(r.Body).Decode(&req)
 	if len(req.MsgIds) == 0 {
-		writeJSON(w, 400, map[string]interface{}{"code": 1, "message": "参数错误"})
+		writeJSON(ctx, w, 400, map[string]interface{}{"code": 1, "message": "参数错误"})
 		return
 	}
 	counts, err := s.groupMsgRepo.GetMessageReadCounts(ctx, req.MsgIds)
 	if err != nil {
-		writeJSON(w, 500, map[string]interface{}{"code": 999, "message": err.Error()})
+		writeJSON(ctx, w, 500, map[string]interface{}{"code": 999, "message": err.Error()})
 		return
 	}
-	writeJSON(w, 200, map[string]interface{}{"code": 0, "read_counts": counts})
+	writeJSON(ctx, w, 200, map[string]interface{}{"code": 0, "read_counts": counts})
 	_ = r
 }

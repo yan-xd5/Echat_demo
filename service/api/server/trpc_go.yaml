@@ -1,7 +1,8 @@
 server:
   filter:
-    - apiAuth
     - opentelemetry
+    - metrics
+    - apiAuth
   service:
     - name: echat.api.UserService
       ip: 127.0.0.1
@@ -10,9 +11,15 @@ server:
       registry: polarismesh            # ★ 注册到北极星
 
     - name: echat.api.UserService.http
-      ip: 0.0.0.0
+      ip: 127.0.0.1
       port: 9001
       protocol: restful
+
+client:
+  service:
+    - name: echat.redis.service
+      target: redis://127.0.0.1:6379/0
+      timeout: 60000
 
 plugins:
   registry:

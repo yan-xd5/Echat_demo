@@ -1,9 +1,10 @@
 server:
   filter:
     - opentelemetry
+    - metrics
   service:
     - name: echat.gateway.GatewayInternal
-      ip: 0.0.0.0
+      ip: 127.0.0.1
       port: 8003
       protocol: trpc
       registry: polarismesh            # ★ 注册到北极星
@@ -12,6 +13,9 @@ client:
   filter:
     - opentelemetry
   service:
+    - name: echat.redis.service
+      target: redis://127.0.0.1:6379/0
+      timeout: 60000
     - name: echat.controller.ControllerService
       namespace: default               # ★ Polaris 命名空间
       discovery: polarismesh
@@ -31,6 +35,8 @@ plugins:
   selector:
     polarismesh:
       address_list: 127.0.0.1:8091
+      service_router:
+        need_return_all_nodes: true
 
   telemetry:
     opentelemetry:

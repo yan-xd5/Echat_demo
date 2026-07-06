@@ -19,7 +19,7 @@ func (s *extraMessageImpl) RevokeMessage(ctx context.Context) {
 	w, r := thttp.Response(ctx), thttp.Request(ctx)
 	uid := getUID(ctx)
 	if uid == "" {
-		writeJSON(w, 401, map[string]interface{}{"code": 1, "message": "未登录"})
+		writeJSON(ctx, w, 401, map[string]interface{}{"code": 1, "message": "未登录"})
 		return
 	}
 	var req struct {
@@ -27,47 +27,47 @@ func (s *extraMessageImpl) RevokeMessage(ctx context.Context) {
 		ChatType string `json:"chat_type"` // private / group
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.MsgId == "" {
-		writeJSON(w, 400, map[string]interface{}{"code": 1, "message": "参数错误"})
+		writeJSON(ctx, w, 400, map[string]interface{}{"code": 1, "message": "参数错误"})
 		return
 	}
 	switch req.ChatType {
 	case "group":
 		msg, err := s.groupMsgRepo.FindMessageByID(ctx, req.MsgId)
 		if err != nil || msg == nil {
-			writeJSON(w, 400, map[string]interface{}{"code": 1, "message": "消息不存在"})
+			writeJSON(ctx, w, 400, map[string]interface{}{"code": 1, "message": "消息不存在"})
 			return
 		}
 		if msg.SenderUID != uid {
-			writeJSON(w, 403, map[string]interface{}{"code": 1, "message": "只能撤回自己的消息"})
+			writeJSON(ctx, w, 403, map[string]interface{}{"code": 1, "message": "只能撤回自己的消息"})
 			return
 		}
 		if err := s.groupMsgRepo.MarkMessageAsRevoked(ctx, req.MsgId); err != nil {
-			writeJSON(w, 500, map[string]interface{}{"code": 999, "message": err.Error()})
+			writeJSON(ctx, w, 500, map[string]interface{}{"code": 999, "message": err.Error()})
 			return
 		}
 	default:
 		msg, err := s.privateRepo.FindMessageByID(ctx, req.MsgId)
 		if err != nil || msg == nil {
-			writeJSON(w, 400, map[string]interface{}{"code": 1, "message": "消息不存在"})
+			writeJSON(ctx, w, 400, map[string]interface{}{"code": 1, "message": "消息不存在"})
 			return
 		}
 		if msg.SenderUID != uid {
-			writeJSON(w, 403, map[string]interface{}{"code": 1, "message": "只能撤回自己的消息"})
+			writeJSON(ctx, w, 403, map[string]interface{}{"code": 1, "message": "只能撤回自己的消息"})
 			return
 		}
 		if err := s.privateRepo.MarkMessageAsRevoked(ctx, req.MsgId); err != nil {
-			writeJSON(w, 500, map[string]interface{}{"code": 999, "message": err.Error()})
+			writeJSON(ctx, w, 500, map[string]interface{}{"code": 999, "message": err.Error()})
 			return
 		}
 	}
-	writeJSON(w, 200, map[string]interface{}{"code": 0, "message": "已撤回"})
+	writeJSON(ctx, w, 200, map[string]interface{}{"code": 0, "message": "已撤回"})
 }
 
 func (s *extraMessageImpl) GetUnreadCount(ctx context.Context) {
 	w, r := thttp.Response(ctx), thttp.Request(ctx)
 	uid := getUID(ctx)
 	if uid == "" {
-		writeJSON(w, 401, map[string]interface{}{"code": 1, "message": "未登录"})
+		writeJSON(ctx, w, 401, map[string]interface{}{"code": 1, "message": "未登录"})
 		return
 	}
 	var req struct {
@@ -87,8 +87,8 @@ func (s *extraMessageImpl) GetUnreadCount(ctx context.Context) {
 		count, err = s.privateRepo.GetUnreadMessageCountByChat(ctx, chatID, uid)
 	}
 	if err != nil {
-		writeJSON(w, 500, map[string]interface{}{"code": 999, "message": err.Error()})
+		writeJSON(ctx, w, 500, map[string]interface{}{"code": 999, "message": err.Error()})
 		return
 	}
-	writeJSON(w, 200, map[string]interface{}{"code": 0, "unread_count": count})
+	writeJSON(ctx, w, 200, map[string]interface{}{"code": 0, "unread_count": count})
 }

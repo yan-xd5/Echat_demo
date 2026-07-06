@@ -251,6 +251,16 @@ func (r *FileRepo) FindFileAssociations(ctx context.Context, fileID string) ([]*
 	return ptr, nil
 }
 
+// FindFileAssociationByID 根据关联 ID 查找文件关联。
+func (r *FileRepo) FindFileAssociationByID(ctx context.Context, associationID string) (*entity.FileAssociation, error) {
+	var a entity.FileAssociation
+	err := r.DB.GetContext(ctx, &a, `SELECT * FROM file_association WHERE association_id = ?`, associationID)
+	if err != nil {
+		return nil, err
+	}
+	return &a, nil
+}
+
 func (r *FileRepo) DeleteFileAssociation(ctx context.Context, associationID string) error {
 	_, err := r.DB.ExecContext(ctx, `DELETE FROM file_association WHERE association_id = ?`, associationID)
 	return err

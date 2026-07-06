@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/polarismesh/polaris-go/api"
-	"github.com/polarismesh/polaris-go/pkg/model"
 	"github.com/redis/go-redis/v9"
 	"trpc.group/trpc-go/trpc-go/client"
 	"trpc.group/trpc-go/trpc-go/log"
@@ -15,6 +13,8 @@ import (
 	"echat/sdk/entity"
 	"echat/sdk/message"
 	"echat/sdk/mysql"
+	"echat/sdk/observability"
+	"echat/sdk/route"
 	gwpb "echat/service/gateway/stub"
 )
 
@@ -22,14 +22,19 @@ import (
 type Pipeline struct {
 	idGen       *IDGen
 	redis       *redis.Client
-	polaris     api.ConsumerAPI
+	discovery   route.ServiceDiscovery
 	msgStore    *mysql.MessageStore
 	authChecker *mysql.AuthChecker
 }
 
 // Process 在 ants worker 内执行完整流水线。
 func (p *Pipeline) Process(msg *message.Message) {
+	t0 := time.Now()
+	chatType := msg.ChatType
+
 	if err := p.authorize(msg); err != nil {
+		observability.RecordMessage(msg.Ctx, chatType, "auth_failed")
+		observability.RecordMessageLatency(msg.Ctx, chatType, time.Since(t0))
 		p.sendACK(msg, &message.ACKResult{Err: err})
 		p.tryDelRequestID(msg)
 		return
@@ -42,10 +47,15 @@ func (p *Pipeline) Process(msg *message.Message) {
 
 	// 持久化失败则中止，ACK 不缓存，客户端靠超时重试
 	if !p.saveMessage(msg) {
+		observability.RecordMessage(msg.Ctx, chatType, "save_failed")
+		observability.RecordMessageLatency(msg.Ctx, chatType, time.Since(t0))
 		p.sendACK(msg, &message.ACKResult{Err: fmt.Errorf("消息持久化失败")})
 		p.tryDelRequestID(msg)
 		return
 	}
+
+	observability.RecordMessage(msg.Ctx, chatType, "success")
+	observability.RecordMessageLatency(msg.Ctx, chatType, time.Since(t0))
 
 	p.sendACK(msg, &message.ACKResult{MsgID: msg.MsgID, SeqID: msg.SeqID, ServerTime: msg.ServerTime})
 
@@ -149,25 +159,17 @@ func (p *Pipeline) routeAndForward(msg *message.Message) {
 		return
 	}
 
-	instResp, err := p.polaris.GetAllInstances(&api.GetAllInstancesRequest{
-		GetAllInstancesRequest: model.GetAllInstancesRequest{
-			Namespace: "default",
-			Service:   "echat.gateway.GatewayInternal",
-		},
-	})
-	if err != nil || len(instResp.Instances) == 0 {
-		log.Errorf("[Controller] Polaris GetAllInstances 失败: err=%v", err)
+	instances, err := p.discovery.GetInstances("echat.gateway.GatewayInternal")
+	if err != nil || len(instances) == 0 {
+		log.Errorf("[Controller] 服务发现 Gateway 失败: err=%v", err)
 		return
 	}
 
 	gatewayAddr := make(map[string]string)
 	var fallback []string
-	for _, inst := range instResp.Instances {
-		if !inst.IsHealthy() {
-			continue
-		}
-		addr := fmt.Sprintf("ip://%s:%d", inst.GetHost(), inst.GetPort())
-		if gwID := inst.GetMetadata()["gateway_id"]; gwID != "" {
+	for _, inst := range instances {
+		addr := "ip://" + inst.Address
+		if gwID := inst.Metadata["gateway_id"]; gwID != "" {
 			gatewayAddr[gwID] = addr
 		} else {
 			fallback = append(fallback, addr)
@@ -202,7 +204,9 @@ func (p *Pipeline) pushAsync(msg *message.Message, uids []string, addr string) {
 		})
 		if err != nil {
 			log.Errorf("[Controller] PushToUser 失败: addr=%s, err=%v", addr, err)
+			return
 		}
+		observability.RecordPush(context.Background(), int64(len(uids)))
 	}()
 }
 

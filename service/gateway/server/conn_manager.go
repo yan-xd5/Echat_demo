@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
 	"hash/fnv"
 	"sync"
 	"sync/atomic"
 
 	"trpc.group/trpc-go/trpc-go/log"
+
+	"echat/sdk/observability"
 )
 
 // Bucket 一个 uid 分片，内部 map[uid]map[deviceID]*UserSession
@@ -57,6 +60,7 @@ func (m *ConnManager) Register(uid, deviceID, platform string, session *UserSess
 	}
 	b.sessions[uid][deviceID] = session
 	log.Infof("[Gateway] 连接注册: uid=%s, device=%s, platform=%s, 在线数=%d", uid, deviceID, platform, m.count.Load())
+	observability.RecordConnection(context.Background(), 1)
 	return nil
 }
 
@@ -79,6 +83,7 @@ func (m *ConnManager) Unregister(uid, deviceID string) {
 	}
 	m.count.Add(-1)
 	log.Infof("[Gateway] 连接注销: uid=%s, device=%s, 在线数=%d", uid, deviceID, m.count.Load())
+	observability.RecordConnection(context.Background(), -1)
 }
 
 // LookupWriteChs 返回 uid 所有在线设备的 WriteCh 切片。

@@ -24,7 +24,7 @@ func (s *extraChatImpl) GetConversations(ctx context.Context) {
 	w, _ := thttp.Response(ctx), thttp.Request(ctx)
 	uid := getUID(ctx)
 	if uid == "" {
-		writeJSON(w, 401, map[string]interface{}{"code": 1, "message": "未登录"})
+		writeJSON(ctx, w, 401, map[string]interface{}{"code": 1, "message": "未登录"})
 		return
 	}
 	type convInfo struct {
@@ -42,7 +42,7 @@ func (s *extraChatImpl) GetConversations(ctx context.Context) {
 	// 私聊会话
 	chats, err := s.privateRepo.FindChatsByUser(ctx, uid)
 		if err != nil {
-			writeJSON(w, 500, map[string]interface{}{"code": 999, "message": err.Error()})
+			writeJSON(ctx, w, 500, map[string]interface{}{"code": 999, "message": err.Error()})
 			return
 		}
 	for _, c := range chats {
@@ -118,7 +118,7 @@ func (s *extraChatImpl) GetConversations(ctx context.Context) {
 		})
 	}
 
-	writeJSON(w, 200, map[string]interface{}{"code": 0, "conversations": list})
+	writeJSON(ctx, w, 200, map[string]interface{}{"code": 0, "conversations": list})
 }
 
 // PinConversation 置顶/取消置顶会话。
@@ -126,7 +126,7 @@ func (s *extraChatImpl) PinConversation(ctx context.Context) {
 	w, r := thttp.Response(ctx), thttp.Request(ctx)
 	uid := getUID(ctx)
 	if uid == "" {
-		writeJSON(w, 401, map[string]interface{}{"code": 1, "message": "未登录"})
+		writeJSON(ctx, w, 401, map[string]interface{}{"code": 1, "message": "未登录"})
 		return
 	}
 	var req struct {
@@ -135,32 +135,32 @@ func (s *extraChatImpl) PinConversation(ctx context.Context) {
 		IsPinned bool   `json:"is_pinned"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.ChatId == "" {
-		writeJSON(w, 400, map[string]interface{}{"code": 1, "message": "参数错误"})
+		writeJSON(ctx, w, 400, map[string]interface{}{"code": 1, "message": "参数错误"})
 		return
 	}
 	switch req.ChatType {
 	case "group":
 		m, _ := s.groupRepo.FindMember(ctx, req.ChatId, uid)
 		if m == nil {
-			writeJSON(w, 403, map[string]interface{}{"code": 1, "message": "不是群成员"})
+			writeJSON(ctx, w, 403, map[string]interface{}{"code": 1, "message": "不是群成员"})
 			return
 		}
 		m.IsPinned = &req.IsPinned
 		s.groupRepo.SaveMember(ctx, m)
 	default:
 		if err := s.privateRepo.UpdatePinStatus(ctx, req.ChatId, uid, req.IsPinned); err != nil {
-			writeJSON(w, 500, map[string]interface{}{"code": 999, "message": err.Error()})
+			writeJSON(ctx, w, 500, map[string]interface{}{"code": 999, "message": err.Error()})
 			return
 		}
 	}
-	writeJSON(w, 200, map[string]interface{}{"code": 0, "message": "已更新"})
+	writeJSON(ctx, w, 200, map[string]interface{}{"code": 0, "message": "已更新"})
 }
 
 // GetOnlineStatus 批量查询用户在线状态。
 func (s *extraChatImpl) GetOnlineStatus(ctx context.Context) {
 	w, r := thttp.Response(ctx), thttp.Request(ctx)
 	if getUID(ctx) == "" {
-		writeJSON(w, 401, map[string]interface{}{"code": 1, "message": "未登录"})
+		writeJSON(ctx, w, 401, map[string]interface{}{"code": 1, "message": "未登录"})
 		return
 	}
 	var req struct {
@@ -168,12 +168,12 @@ func (s *extraChatImpl) GetOnlineStatus(ctx context.Context) {
 	}
 	json.NewDecoder(r.Body).Decode(&req)
 	if len(req.Uids) == 0 {
-		writeJSON(w, 400, map[string]interface{}{"code": 1, "message": "参数错误"})
+		writeJSON(ctx, w, 400, map[string]interface{}{"code": 1, "message": "参数错误"})
 		return
 	}
 	online, err := s.onlineRepo.BatchCheckOnlineStatus(ctx, req.Uids)
 	if err != nil {
-		writeJSON(w, 500, map[string]interface{}{"code": 999, "message": err.Error()})
+		writeJSON(ctx, w, 500, map[string]interface{}{"code": 999, "message": err.Error()})
 		return
 	}
 	onlineSet := make(map[string]bool, len(online))
@@ -184,7 +184,7 @@ func (s *extraChatImpl) GetOnlineStatus(ctx context.Context) {
 	for _, uid := range req.Uids {
 		result[uid] = onlineSet[uid]
 	}
-	writeJSON(w, 200, map[string]interface{}{"code": 0, "online": result})
+	writeJSON(ctx, w, 200, map[string]interface{}{"code": 0, "online": result})
 }
 
 // DisbandGroup 解散群（仅群主）。
@@ -192,37 +192,37 @@ func (s *extraChatImpl) DisbandGroup(ctx context.Context) {
 	w, r := thttp.Response(ctx), thttp.Request(ctx)
 	uid := getUID(ctx)
 	if uid == "" {
-		writeJSON(w, 401, map[string]interface{}{"code": 1, "message": "未登录"})
+		writeJSON(ctx, w, 401, map[string]interface{}{"code": 1, "message": "未登录"})
 		return
 	}
 	var req struct {
 		Gid string `json:"gid"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Gid == "" {
-		writeJSON(w, 400, map[string]interface{}{"code": 1, "message": "参数错误"})
+		writeJSON(ctx, w, 400, map[string]interface{}{"code": 1, "message": "参数错误"})
 		return
 	}
 	g, err := s.groupRepo.FindGroupByGID(ctx, req.Gid)
 	if err != nil || g == nil {
-		writeJSON(w, 400, map[string]interface{}{"code": 1, "message": "群不存在"})
+		writeJSON(ctx, w, 400, map[string]interface{}{"code": 1, "message": "群不存在"})
 		return
 	}
 	if g.ManagerUID != uid {
-		writeJSON(w, 403, map[string]interface{}{"code": 1, "message": "只有群主能解散群"})
+		writeJSON(ctx, w, 403, map[string]interface{}{"code": 1, "message": "只有群主能解散群"})
 		return
 	}
 	if err := s.groupRepo.DeleteGroup(ctx, req.Gid); err != nil {
-		writeJSON(w, 500, map[string]interface{}{"code": 999, "message": err.Error()})
+		writeJSON(ctx, w, 500, map[string]interface{}{"code": 999, "message": err.Error()})
 		return
 	}
-	writeJSON(w, 200, map[string]interface{}{"code": 0, "message": "群已解散"})
+	writeJSON(ctx, w, 200, map[string]interface{}{"code": 0, "message": "群已解散"})
 }
 
 // SearchGroup 搜索群。
 func (s *extraChatImpl) SearchGroup(ctx context.Context) {
 	w, r := thttp.Response(ctx), thttp.Request(ctx)
 	if getUID(ctx) == "" {
-		writeJSON(w, 401, map[string]interface{}{"code": 1, "message": "未登录"})
+		writeJSON(ctx, w, 401, map[string]interface{}{"code": 1, "message": "未登录"})
 		return
 	}
 	var req struct {
@@ -230,12 +230,12 @@ func (s *extraChatImpl) SearchGroup(ctx context.Context) {
 	}
 	json.NewDecoder(r.Body).Decode(&req)
 	if req.Keyword == "" {
-		writeJSON(w, 400, map[string]interface{}{"code": 1, "message": "缺少 keyword"})
+		writeJSON(ctx, w, 400, map[string]interface{}{"code": 1, "message": "缺少 keyword"})
 		return
 	}
 	groups, err := s.groupRepo.FindGroupByName(ctx, req.Keyword)
 	if err != nil {
-		writeJSON(w, 500, map[string]interface{}{"code": 999, "message": err.Error()})
+		writeJSON(ctx, w, 500, map[string]interface{}{"code": 999, "message": err.Error()})
 		return
 	}
 	type groupInfo struct {
@@ -255,7 +255,7 @@ func (s *extraChatImpl) SearchGroup(ctx context.Context) {
 			MemberCount: cnt,
 		})
 	}
-	writeJSON(w, 200, map[string]interface{}{"code": 0, "groups": list})
+	writeJSON(ctx, w, 200, map[string]interface{}{"code": 0, "groups": list})
 }
 
 // GetGroupAnnounces 获取群公告。
@@ -263,7 +263,7 @@ func (s *extraChatImpl) GetGroupAnnounces(ctx context.Context) {
 	w, r := thttp.Response(ctx), thttp.Request(ctx)
 	uid := getUID(ctx)
 	if uid == "" {
-		writeJSON(w, 401, map[string]interface{}{"code": 1, "message": "未登录"})
+		writeJSON(ctx, w, 401, map[string]interface{}{"code": 1, "message": "未登录"})
 		return
 	}
 	var req struct {
@@ -271,17 +271,17 @@ func (s *extraChatImpl) GetGroupAnnounces(ctx context.Context) {
 	}
 	json.NewDecoder(r.Body).Decode(&req)
 	if req.Gid == "" {
-		writeJSON(w, 400, map[string]interface{}{"code": 1, "message": "参数错误"})
+		writeJSON(ctx, w, 400, map[string]interface{}{"code": 1, "message": "参数错误"})
 		return
 	}
 	// 检查是否是成员
 	if _, err := s.groupRepo.FindMember(ctx, req.Gid, uid); err != nil {
-		writeJSON(w, 403, map[string]interface{}{"code": 1, "message": "不是群成员"})
+		writeJSON(ctx, w, 403, map[string]interface{}{"code": 1, "message": "不是群成员"})
 		return
 	}
 	announces, err := s.groupMsgRepo.FindAnnouncesByGroup(ctx, req.Gid)
 	if err != nil {
-		writeJSON(w, 500, map[string]interface{}{"code": 999, "message": err.Error()})
+		writeJSON(ctx, w, 500, map[string]interface{}{"code": 999, "message": err.Error()})
 		return
 	}
 	type announceInfo struct {
@@ -300,5 +300,5 @@ func (s *extraChatImpl) GetGroupAnnounces(ctx context.Context) {
 			MsgId: a.MsgID, Content: a.Content, SenderUid: a.SenderUID, SendTime: st,
 		})
 	}
-	writeJSON(w, 200, map[string]interface{}{"code": 0, "announces": list})
+	writeJSON(ctx, w, 200, map[string]interface{}{"code": 0, "announces": list})
 }

@@ -185,7 +185,7 @@ func (s *UserSession) handleRouteMessage(msg *WSMessage, rawBytes []byte, gatewa
 	// 3. 会话级路由选 Controller
 	addr, err := gateway.sessionRouter.Resolve(sessionID)
 	if err != nil {
-		errFrame, _ := json.Marshal(WSResponse{Seq: msg.Seq, Type: "error", Error: "路由解析失败"})
+		errFrame, _ := json.Marshal(WSResponse{Seq: msg.Seq, Type: "error", Error: err.Error()})
 		s.writeNonBlocking(errFrame)
 		return
 	}

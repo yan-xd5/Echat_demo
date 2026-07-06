@@ -27,12 +27,12 @@ func (s *extraUserImpl) UpdateProfile(ctx context.Context) {
 	w, r := thttp.Response(ctx), thttp.Request(ctx)
 	uid := getUID(ctx)
 	if uid == "" {
-		writeJSON(w, 401, map[string]interface{}{"code": 1, "message": "未登录"})
+		writeJSON(ctx, w, 401, map[string]interface{}{"code": 1, "message": "未登录"})
 		return
 	}
 	var req updateProfileReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, 400, map[string]interface{}{"code": 1, "message": "参数格式错误"})
+		writeJSON(ctx, w, 400, map[string]interface{}{"code": 1, "message": "参数格式错误"})
 		return
 	}
 	user := &entity.User{UID: uid}
@@ -55,16 +55,16 @@ func (s *extraUserImpl) UpdateProfile(ctx context.Context) {
 		user.Bio = req.Bio
 	}
 	if err := s.userRepo.UpdateUser(ctx, user); err != nil {
-		writeJSON(w, 500, map[string]interface{}{"code": 999, "message": err.Error()})
+		writeJSON(ctx, w, 500, map[string]interface{}{"code": 999, "message": err.Error()})
 		return
 	}
-	writeJSON(w, 200, map[string]interface{}{"code": 0, "message": "修改成功"})
+	writeJSON(ctx, w, 200, map[string]interface{}{"code": 0, "message": "修改成功"})
 }
 
 func (s *extraUserImpl) SearchUser(ctx context.Context) {
 	w, r := thttp.Response(ctx), thttp.Request(ctx)
 	if getUID(ctx) == "" {
-		writeJSON(w, 401, map[string]interface{}{"code": 1, "message": "未登录"})
+		writeJSON(ctx, w, 401, map[string]interface{}{"code": 1, "message": "未登录"})
 		return
 	}
 	var req struct {
@@ -73,12 +73,12 @@ func (s *extraUserImpl) SearchUser(ctx context.Context) {
 	json.NewDecoder(r.Body).Decode(&req)
 	keyword := req.Keyword
 	if keyword == "" {
-		writeJSON(w, 400, map[string]interface{}{"code": 1, "message": "缺少 keyword"})
+		writeJSON(ctx, w, 400, map[string]interface{}{"code": 1, "message": "缺少 keyword"})
 		return
 	}
 	users, err := s.userRepo.FindUserByUsername(ctx, keyword)
 	if err != nil {
-		writeJSON(w, 500, map[string]interface{}{"code": 999, "message": err.Error()})
+		writeJSON(ctx, w, 500, map[string]interface{}{"code": 999, "message": err.Error()})
 		return
 	}
 	type userInfo struct {
@@ -94,5 +94,5 @@ func (s *extraUserImpl) SearchUser(ctx context.Context) {
 			Avatar: entity.PtrVal(u.Avatar),
 		})
 	}
-	writeJSON(w, 200, map[string]interface{}{"code": 0, "users": list})
+	writeJSON(ctx, w, 200, map[string]interface{}{"code": 0, "users": list})
 }

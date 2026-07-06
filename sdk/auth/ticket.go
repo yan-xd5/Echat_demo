@@ -3,6 +3,8 @@ package auth
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"time"
@@ -12,12 +14,18 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// JWTSecret 签名密钥（环境变量 JWT_SECRET，默认仅开发环境使用）
+// JWTSecret 签名密钥。
+// 优先级: 环境变量 JWT_SECRET > 运行时随机生成（仅开发可用，生产必须设置）。
 var JWTSecret = func() []byte {
 	if s := os.Getenv("JWT_SECRET"); s != "" {
 		return []byte(s)
 	}
-	return []byte("echat-jwt-secret-key-2024")
+	// 开发环境：随机生成临时密钥，服务重启后所有 Token 失效
+	key := make([]byte, 32)
+	rand.Read(key)
+	fmt.Println("⚠️  [AUTH] JWT_SECRET 未设置！已生成临时密钥（重启后 Token 全部失效）。")
+	fmt.Println("⚠️  [AUTH] 生产环境请设置环境变量: export JWT_SECRET=<your-secret>")
+	return []byte(hex.EncodeToString(key))
 }()
 
 // Claims JWT 载荷
