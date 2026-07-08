@@ -16,9 +16,9 @@ import (
 	"github.com/gorilla/websocket"
 	"golang.org/x/crypto/bcrypt"
 
-	"echat/sdk/auth"
-	"echat/sdk/entity"
-	"echat/sdk/mysql"
+	"echat/sdk/usecase/auth"
+	"echat/sdk/domain/entity"
+	"echat/sdk/repository/mysql"
 )
 
 func main() {

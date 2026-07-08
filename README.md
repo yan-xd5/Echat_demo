@@ -1,207 +1,220 @@
 # eChat — tRPC-Go 即时通讯后端
 
-基于 tRPC-Go 框架的分布式 IM 系统，采用三服务架构，支持 WebSocket 长连接、Polaris 服务发现、OpenTelemetry 链路追踪。
+基于 tRPC-Go 框架的分布式 IM 系统，三服务架构，支持 WebSocket 长连接、Polaris 服务发现、OpenTelemetry 全栈观测。
 
 ## 架构
 
-**三服务职责：**
+### 分层设计
 
-| 服务 | 协议 | 职责 |
-|------|------|------|
-| **Gateway** | WebSocket + tRPC | 长连接接入、协议转换、连接管理、消息收发 |
-| **Controller** | tRPC | 消息路由决策、Token 校验、在线状态管理 |
-| **API** | tRPC + HTTP | 用户/好友/群组 CRUD、数据库操作 |
+```
+transport ──→ usecase ──→ repository ──→ domain
+    │              │
+    └──────────────┴──→ infrastructure
+```
+
+| 层 | 目录 | 职责 |
+|----|------|------|
+| **domain** | `sdk/domain/entity/` | 数据实体，不依赖任何层 |
+| **repository** | `sdk/repository/mysql/` `redis/` | 数据访问，只依赖 domain |
+| **usecase** | `sdk/usecase/auth/` `message/` `route/` | 业务逻辑，依赖 domain + repository |
+| **infrastructure** | `sdk/infrastructure/observability/` `idgen/` | 观测、ID生成，被所有层引用 |
+| **transport** | `service/*/internal/` | 传输层，依赖 usecase（每个服务独立分层） |
+
+### 服务拓扑
+
+```
+Client ──WebSocket──→ Gateway(:9000) ──→ Controller(:8002) ──→ MySQL
+                           │                      │
+                       Polaris                Redis(seq_id/路由/在线状态)
+                           │
+Client ──HTTP REST──→ API(:9001) ──→ MySQL + Redis
+```
+
+| 服务 | 协议 | 端口 | 职责 |
+|------|------|------|------|
+| **Gateway** | WebSocket + tRPC | 9000 / 8003 | 长连接接入、协议转换、连接管理、跨网关顶号 |
+| **Controller** | tRPC | 8002 | 消息路由、去重、持久化、Push 推送、Token 校验 |
+| **API** | tRPC + RESTful | 8001 / 9001 | 用户/好友/群组/文件 CRUD、认证、RSA 加密 |
 
 ## 技术栈
 
-| 组件 | 技术 |
+| 分类 | 技术 |
 |------|------|
-| 语言 | Go 1.24 |
-| 微服务框架 | tRPC-Go |
-| 序列化 | Protobuf |
+| 框架 | tRPC-Go v1.0.4 |
+| 数据库 | MySQL 8.0 (sqlx) |
+| 缓存 | Redis (goredis 插件) |
+| 服务发现 | Polaris (trpc-naming-polarismesh) |
 | WebSocket | gorilla/websocket |
-| 数据库 | MySQL（sqlx） |
-| 服务发现 | Polaris（北极星） |
-| 链路追踪 | OpenTelemetry + Jaeger |
-| 包管理 | Go Workspace |
+| 认证 | JWT (HS256) + RSA-2048-OAEP 密码加密 |
+| ID 生成 | Snowflake (bwmarrin) |
+| 协程池 | ants |
+| 序列化 | Protobuf + JSON |
+| 观测 | OpenTelemetry (Tracing + Metrics) + pprof |
+| 可视化 | Jaeger + Prometheus + Grafana + Pyroscope |
+| 包管理 | Go Workspace (4 模块) |
 
 ## 目录结构
 
 ```
 echat/
-├── go.work                          # Go Workspace（多模块管理）
-├── go.mod                           # 根模块
-├── docs/                            # 项目文档
-│   └── day/                         # 开发日报
-├── proto/common/                    # 共享 Proto 定义
-│   ├── common.proto
-│   └── common.pb.go
-├── service/
-│   ├── api/                         # API 服务（用户/好友/群组 CRUD）
-│   │   ├── proto/user.proto
-│   │   ├── stub/                    # 生成的桩代码
-│   │   ├── server/
-│   │   │   ├── main.go              # 启动入口
-│   │   │   ├── db.go                # MySQL 连接池
-│   │   │   ├── config.go            # .env 加载
-│   │   │   ├── trpc_go.yaml
-│   │   │   ├── .env + .env.example
-│   │   │   └── repository/          # 数据访问层
-│   │   └── go.mod
-│   │
-│   ├── controller/                  # 中控服务（消息路由 + 鉴权）
-│   │   ├── proto/controller.proto
-│   │   ├── stub/
-│   │   ├── server/
-│   │   │   ├── main.go
-│   │   │   ├── filter.go            # 请求拦截 Filter
-│   │   │   └── trpc_go.yaml
-│   │   └── go.mod
-│   │
-│   └── gateway/                     # 代理服务（WebSocket + 协议转换）
-│       ├── proto/gateway.proto
-│       ├── stub/
-│       ├── server/
-│       │   ├── main.go
-│       │   ├── ws_handler.go        # WebSocket 处理
-│       │   ├── conn_manager.go      # 连接管理
-│       │   ├── test_client.go       # 测试客户端
-│       │   └── trpc_go.yaml
-│       └── go.mod
-│
-├── CLAUDE.md
-└── README.md
+├── sdk/                             # 共享代码（分 4 层）
+│   ├── domain/entity/               # 领域层：数据实体
+│   ├── repository/                  # 数据访问层
+│   │   ├── mysql/                   # MySQL Repository（10 文件）
+│   │   └── redis/                   # Redis 操作
+│   ├── usecase/                     # 业务逻辑层
+│   │   ├── auth/                    # JWT + RSA
+│   │   ├── message/                 # 消息结构
+│   │   └── route/                   # 会话路由 + 服务发现
+│   └── infrastructure/             # 基础设施层
+│       ├── observability/           # OTel Metrics + pprof
+│       └── idgen/                   # Snowflake ID
+├── service/                         # 微服务（每个独立 go.mod，可单独部署）
+│   ├── api/                         # API 服务（20 文件 + internal/）
+│   │   ├── internal/                #   内部子包
+│   │   │   ├── shared/              #   共享工具（getUID/writeJSON/msg）
+│   │   │   └── filter/              #   auth filter
+│   │   └── stub/                    #   proto 生成代码
+│   ├── controller/                  # 中控服务（3 文件 + internal/）
+│   │   ├── internal/
+│   │   │   └── pipeline/            #   消息处理管线（Pipeline/Entry/Pool/IDGen）
+│   │   └── stub/
+│   └── gateway/                     # 网关服务（2 文件 + internal/）
+│       ├── internal/
+│       │   ├── session/             #   WS 会话管理（Session/ConnManager/Gateway）
+│       │   └── handler/             #   WS Handler + tRPC PushService
+│       └── stub/
+├── cmd/                             # 测试工具（4 个）
+│   ├── ws_test/                     # WS 集成测试（单条消息）
+│   ├── stress_test/                 # 压力测试（并发消息）
+│   ├── long_test/                   # 长时间稳定性测试（私聊+群聊+API）  
+│   └── api_test/                    # 全 API 端点测试（37 RESTful）
+├── deploy/                          # 部署配置
+│   ├── docker-compose.observability.yaml
+│   ├── otel-collector-config.yaml
+│   ├── prometheus.yml
+│   └── grafana-provisioning/        # Grafana 统一观测仪表板
+├── proto/common/                    # 共享 Proto
+└── docs/
 ```
 
 ## 功能
 
 ### 已实现
 
-- [x] 用户登录认证（account + password）
-- [x] WebSocket 长连接（认证、收发消息、心跳）
-- [x] 消息路由（单聊，含接收者校验）
-- [x] 在线状态管理（上线/下线通知）
-- [x] Token 校验 Filter（解析请求，注入用户信息到 ctx）
+- [x] 用户注册/登录（RSA-OAEP 加密密码 + bcrypt 存储）
+- [x] JWT Token 签发与校验（7 天有效期）
+- [x] 好友管理（申请/审批/删除/拉黑）
+- [x] 群组管理（创建/加入审批/踢人/禁言/解散）
+- [x] 私聊 + 群聊消息收发（全链路 WS → Gateway → Controller → MySQL → Push）
+- [x] 消息去重（Redis SETNX）、已读回执、撤回
+- [x] 文件上传/下载/权限管理/关联
+- [x] 会话列表（置顶、未读数）
+- [x] 在线状态查询、跨网关顶号
+- [x] 58 个 RESTful API 端点
+- [x] auth filter 集中拦截（非公开路由强制认证）
 - [x] 优雅关机（全部三服务）
-- [x] OpenTelemetry 链路追踪（Jaeger 可视化）
-- [x] 双协议支持（API 同时支持 tRPC 和 HTTP）
-- [x] 数据库环境变量管理（godotenv + .env）
-- [x] Polaris 服务发现（替代硬编码 IP）
-
-### 待实现
-
-- [ ] 好友关系管理
-- [ ] 群聊功能
-- [ ] 消息持久化存储与离线消息
-- [ ] JWT 真实 Token 签发与校验
-- [ ] 协程池 + 限流 + 熔断降级
-
-## 插件与中间件
-
-| 插件 | 服务 | 用途 |
-|------|------|------|
-| **opentelemetry** | 全部 | 链路追踪，TraceID 注入日志 + Span 上报 Jaeger |
-| **polarismesh** | 全部 | 北极星服务发现，替代硬编码 IP |
-| **myServerFilter** | Controller | 自定义 Filter：按请求类型解析 Token、校验身份、注入 ctx |
-| **godotenv** | API | 自动加载 .env 环境变量 |
-| **sqlx** | API | MySQL 连接池与查询 |
+- [x] OpenTelemetry 全栈观测（Tracing + Metrics + Profiling）
+- [x] Grafana 预置仪表板（RPC 概览 + 业务指标 + 链路追踪）
+- [x] Polaris 服务发现（统一走 tRPC naming/discovery）
+- [x] Redis 统一走 tRPC goredis 插件
 
 ## 服务端口
 
-| 服务 | 端口 | 协议 |
+| 服务 | 端口 | 协议 | 绑定 |
+|------|------|------|------|
+| API tRPC | 8001 | tRPC | 127.0.0.1 |
+| API RESTful | 9001 | HTTP | 127.0.0.1 |
+| Controller | 8002 | tRPC | 127.0.0.1 |
+| Gateway tRPC | 8003 | tRPC | 127.0.0.1 |
+| Gateway WebSocket | 9000 | WS | 0.0.0.0 |
+| pprof (×3) | 6061-6063 | HTTP | 127.0.0.1 |
+
+## 观测端口
+
+| 服务 | 端口 | 用途 |
 |------|------|------|
-| API tRPC | 8001 | tRPC |
-| API HTTP | 9001 | HTTP |
-| Controller | 8002 | tRPC |
-| Gateway tRPC | 8003 | tRPC |
-| Gateway WebSocket | 9000 | WebSocket |
-| Jaeger UI | 16686 | HTTP |
+| Jaeger UI | 16686 | 链路追踪 |
+| Prometheus | 9090 | 指标查询 |
+| Grafana | 3000 | 统一可视化 (admin/admin) |
+| Pyroscope | 4040 | 持续 Profiling |
 
 ## 快速开始
 
 ### 1. 环境要求
 
 - Go 1.24+
-- MySQL 8.0+
-- Docker（运行 Polaris）
-- Jaeger（可选，链路追踪可视化）
+- MySQL 8.0+（数据库 `chat`）
+- Redis
+- Docker（Polaris + 观测栈）
 
-### 1.1 启动 Polaris
+### 2. 启动基础设施
 
 ```bash
-docker run -d --name polaris -p 8091:8091 polarismesh/polaris-standalone:latest
+# Polaris
+docker run -d --name polaris -p 8090:8090 -p 8091:8091 polarismesh/polaris-standalone:latest
+
+# 观测栈（可选）
+docker compose -f deploy/docker-compose.observability.yaml up -d
 ```
 
-### 2. 数据库
+### 3. 数据库
 
 ```sql
 CREATE DATABASE chat DEFAULT CHARSET utf8mb4;
-
-CREATE TABLE user (
-    uid VARCHAR(20) PRIMARY KEY COMMENT '用户编号',
-    username VARCHAR(50) NOT NULL COMMENT '用户名',
-    account VARCHAR(100) NOT NULL UNIQUE COMMENT '账号',
-    password VARCHAR(100) NOT NULL COMMENT '密码',
-    gender ENUM('male','female','other') NOT NULL DEFAULT 'other',
-    region VARCHAR(100) DEFAULT NULL,
-    email VARCHAR(100) DEFAULT NULL,
-    avatar VARCHAR(500) DEFAULT NULL,
-    bio VARCHAR(90) DEFAULT NULL,
-    create_time TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
-);
+-- 完整建表语句见 sdk/mysql/schema.sql
 ```
 
-### 3. 配置
+### 4. 配置
 
 ```bash
-# 复制环境变量模板，修改密码
-cd service/api/server
-cp .env.example .env
-# 编辑 .env 中的 DB_PASS
+# API + Controller 自动加载 .env
+echo 'DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_USER=root
+DB_PASS=your_password
+DB_NAME=chat' > service/api/.env
+
+cp service/api/.env service/controller/.env
 ```
 
-### 4. 启动
+### 5. 启动
 
 ```bash
-# 终端 1：API
-cd service/api/server && go run .
+# 设置环境变量（PowerShell: $env:KEY="value" / Bash: export KEY="value"）
+JWT_SECRET=your-secret
+MYSQL_DSN=root:pass@tcp(127.0.0.1:3306)/chat?charset=utf8mb4&parseTime=true
+
+# 终端 1：Gateway
+cd service/gateway && go run .
 
 # 终端 2：Controller
-cd service/controller/server && go run .
+cd service/controller && go run .
 
-# 终端 3：Gateway
-cd service/gateway/server && go run .
+# 终端 3：API
+cd service/api && go run .
 ```
 
-### 5. 测试
+### 6. 测试
 
 ```bash
-# WebSocket 客户端测试
-cd service/gateway/server && go run test_client.go
+# WebSocket 全链路（单条消息，验证端到端）
+go run ./cmd/ws_test/
 
-# 或 HTTP 测试
-curl -X POST http://localhost:9001/api/v1/user/login \
-  -H "Content-Type: application/json" \
-  -d '{"account":"admin","password":"123456"}'
+# 压力测试（并发消息，默认 10 对 × 50）
+PAIRS=50 MSGS=100 go run ./cmd/stress_test/
+
+# 长时间稳定性（双 WS 在线，交替私聊+群聊+API，默认 10min）
+ROUNDS=10 MINUTES=1 go run ./cmd/long_test/
+
+# 全 API 端点测试（37 RESTful 端点逐个验证）
+TEST_TOKEN=<jwt> go run ./cmd/api_test/
 ```
 
-### 6. Proto 代码生成
+### 7. 观测面板
 
-```bash
-# 修改 .proto 后重新生成桩代码
-cd service/xxx
-trpc create -p proto/xxx.proto -d ../../proto -o stub --rpconly --nogomod
-
-# 修复生成路径（trpc create 已知问题）
-mv stub/service/*/proto/*.pb.go stub/ && rm -rf stub/service stub/tmp-*
-```
-
-### 7. 链路追踪（可选）
-
-```bash
-# 下载 Jaeger Windows 版：https://github.com/jaegertracing/jaeger/releases
-.\jaeger-all-in-one.exe
-
-# 浏览器打开
-http://localhost:16686
-```
+浏览器打开：
+- **Grafana**: http://localhost:3000 → 预置仪表板 `eChat - 服务概览` + `eChat - 链路追踪`
+- **Jaeger**: http://localhost:16686 → 搜索 TraceID 查看调用链
+- **Prometheus**: http://localhost:9090 → 查询 `echat_*` 指标
+- **pprof**: http://localhost:6061/debug/pprof/ (API) / 6062 (Controller) / 6063 (Gateway)

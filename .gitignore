@@ -20,5 +20,3 @@ vendor/
 # Polaris 本地缓存（运行时生成，不是源码）
 polaris/
 
-#项目文档
-docs/
