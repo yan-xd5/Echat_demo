@@ -7,18 +7,44 @@
 ### 分层设计
 
 ```
-transport ──→ usecase ──→ repository ──→ domain
-    │              │
-    └──────────────┴──→ infrastructure
+┌──────────────────────────────────────────────────────────────┐
+│                       transport（传输层）                     │
+│  service/api/       service/controller/    service/gateway/  │
+│  ├─ main.go         ├─ main.go             ├─ main.go        │
+│  └─ internal/       └─ internal/           └─ internal/      │
+│     ├─ handler/   ← tRPC 业务实现              ├─ handler/   │
+│     ├─ restful/   ← RESTful API                ├─ session/   │
+│     ├─ trpc/      ← 服务注册                    └─ filter/   │
+│     ├─ filter/    ← auth 拦截                               │
+│     └─ shared/    ← 共享工具                                │
+└──────────┬───────────────────────────────────────────────────┘
+           │  依赖
+┌──────────▼───────────────────────────────────────────────────┐
+│                       usecase（用例层）                        │
+│  sdk/usecase/auth/       sdk/usecase/message/                 │
+│  sdk/usecase/route/                                           │
+└──────────┬──────────────────────────────┬────────────────────┘
+           │  依赖                         │  依赖
+┌──────────▼──────────┐  ┌────────────────▼────────────────────┐
+│  repository（仓储层） │  │  infrastructure（基础设施层）         │
+│  sdk/repository/     │  │  sdk/infrastructure/observability/   │
+│  ├─ mysql/  ← 数据库  │  │  sdk/infrastructure/idgen/           │
+│  └─ redis/  ← 缓存    │  └────────────────────────────────────┘
+└──────────┬──────────┘
+           │  依赖
+┌──────────▼──────────┐
+│  domain（领域层）     │
+│  sdk/domain/entity/ │
+└─────────────────────┘
 ```
 
-| 层 | 目录 | 职责 |
-|----|------|------|
-| **domain** | `sdk/domain/entity/` | 数据实体，不依赖任何层 |
-| **repository** | `sdk/repository/mysql/` `redis/` | 数据访问，只依赖 domain |
-| **usecase** | `sdk/usecase/auth/` `message/` `route/` | 业务逻辑，依赖 domain + repository |
-| **infrastructure** | `sdk/infrastructure/observability/` `idgen/` | 观测、ID生成，被所有层引用 |
-| **transport** | `service/*/internal/` | 传输层，依赖 usecase（每个服务独立分层） |
+| 层 | 目录 | 依赖方向 |
+|----|------|----------|
+| **transport** | `service/*/internal/` | → usecase + infrastructure |
+| **usecase** | `sdk/usecase/` | → repository + domain |
+| **repository** | `sdk/repository/` | → domain |
+| **domain** | `sdk/domain/entity/` | 无外部依赖 |
+| **infrastructure** | `sdk/infrastructure/` | 被所有层引用 |
 
 ### 服务拓扑
 
