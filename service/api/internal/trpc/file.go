@@ -1,4 +1,4 @@
-package main
+package trpc
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	pb "echat/service/api/stub"
 )
 
+// FileServiceService 文件服务接口。
 type FileServiceService interface {
 	Upload(ctx context.Context, req *pb.UploadRequest) (*pb.UploadResponse, error)
 	Download(ctx context.Context, req *pb.DownloadRequest) (*pb.DownloadResponse, error)
@@ -18,9 +19,11 @@ type FileServiceService interface {
 }
 
 type bodyUpload struct{}
+
 func (bodyUpload) Locate(m restful.ProtoMessage) interface{} { return m.(*pb.UploadRequest) }
 func (bodyUpload) Body() string                              { return "*" }
 
+// FileServiceServer_ServiceDesc 文件服务描述符。
 var FileServiceServer_ServiceDesc = server.ServiceDesc{
 	ServiceName: "echat.api.FileService",
 	HandlerType: ((*FileServiceService)(nil)),
@@ -113,6 +116,7 @@ var FileServiceServer_ServiceDesc = server.ServiceDesc{
 	},
 }
 
+// RegisterFileServiceService 注册文件服务。
 func RegisterFileServiceService(s server.Service, svr FileServiceService) {
 	if err := s.Register(&FileServiceServer_ServiceDesc, svr); err != nil {
 		panic("FileService register error:" + err.Error())

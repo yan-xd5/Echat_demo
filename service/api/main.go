@@ -24,6 +24,7 @@ import (
 	_ "echat/service/api/internal/filter"
 	"echat/service/api/internal/handler"
 	"echat/service/api/internal/restful"
+	svctrpc "echat/service/api/internal/trpc"
 	pb "echat/service/api/stub"
 )
 
@@ -72,11 +73,11 @@ func main() {
 	observability.InitBusinessMetrics()
 
 	pb.RegisterUserServiceService(s, svc)
-	RegisterFriendServiceService(s, friendSvc)
-	RegisterMessageServiceService(s, msgSvc)
-	RegisterGroupServiceService(s, groupSvc)
-	RegisterFileServiceService(s, fileSvc)
-	RegisterAuthServiceService(s, &authImpl{})
+	svctrpc.RegisterFriendServiceService(s, friendSvc)
+	svctrpc.RegisterMessageServiceService(s, msgSvc)
+	svctrpc.RegisterGroupServiceService(s, groupSvc)
+	svctrpc.RegisterFileServiceService(s, fileSvc)
+	svctrpc.RegisterAuthServiceService(s, svctrpc.NewAuthHandler())
 
 	s.Register(&userServiceHTTPDesc, svc)
 	s.Register(&friendServiceHTTPDesc, friendSvc)

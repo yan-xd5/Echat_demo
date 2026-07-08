@@ -70,19 +70,24 @@ echat/
 │       ├── observability/           # OTel Metrics + pprof
 │       └── idgen/                   # Snowflake ID
 ├── service/                         # 微服务（每个独立 go.mod，可单独部署）
-│   ├── api/                         # API 服务（20 文件 + internal/）
-│   │   ├── internal/                #   内部子包
-│   │   │   ├── shared/              #   共享工具（getUID/writeJSON/msg）
-│   │   │   └── filter/              #   auth filter
-│   │   └── stub/                    #   proto 生成代码
-│   ├── controller/                  # 中控服务（3 文件 + internal/）
+│   ├── api/                         # API 服务（3 根文件 + 5 子包）
 │   │   ├── internal/
-│   │   │   └── pipeline/            #   消息处理管线（Pipeline/Entry/Pool/IDGen）
+│   │   │   ├── handler/             #   tRPC handler（User/Friend/Group/Message/File/Auth）
+│   │   │   ├── restful/             #   RESTful handler（9 文件，58 个 API 端点）
+│   │   │   ├── trpc/                #   服务注册（ServiceDesc + Register*）
+│   │   │   ├── shared/              #   共享工具（GetUID/WriteJSON/MsgError/MsgSuccess）
+│   │   │   └── filter/              #   auth filter
 │   │   └── stub/
-│   └── gateway/                     # 网关服务（2 文件 + internal/）
+│   ├── controller/                  # 中控服务（2 根文件 + 3 子包）
+│   │   ├── internal/
+│   │   │   ├── handler/             #   消息路由/AuthCheck handler
+│   │   │   ├── pipeline/            #   消息处理管线（Pipeline/Entry/Pool/IDGen）
+│   │   │   └── filter/              #   Token 校验 serverFilter
+│   │   └── stub/
+│   └── gateway/                     # 网关服务（2 根文件 + 2 子包）
 │       ├── internal/
-│       │   ├── session/             #   WS 会话管理（Session/ConnManager/Gateway）
-│       │   └── handler/             #   WS Handler + tRPC PushService
+│       │   ├── session/             #   WS 会话管理（Session/ConnManager/Gateway/Kick）
+│       │   └── handler/             #   WS AuthHandler + tRPC PushService
 │       └── stub/
 ├── cmd/                             # 测试工具（4 个）
 │   ├── ws_test/                     # WS 集成测试（单条消息）
@@ -168,14 +173,11 @@ CREATE DATABASE chat DEFAULT CHARSET utf8mb4;
 ### 4. 配置
 
 ```bash
-# API + Controller 自动加载 .env
-echo 'DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_USER=root
-DB_PASS=your_password
-DB_NAME=chat' > service/api/.env
-
-cp service/api/.env service/controller/.env
+# API 通过以下环境变量连接 MySQL：
+# DB_HOST=127.0.0.1  DB_PORT=3306  DB_USER=root  DB_PASS=your_password  DB_NAME=chat
+# Controller + Gateway 使用 MYSQL_DSN
+export MYSQL_DSN="root:pass@tcp(127.0.0.1:3306)/chat?charset=utf8mb4&parseTime=true"
+export JWT_SECRET="your-secret-key"
 ```
 
 ### 5. 启动
@@ -198,17 +200,21 @@ cd service/api && go run .
 ### 6. 测试
 
 ```bash
+# 环境变量
+export JWT_SECRET="your-secret"
+export MYSQL_DSN="root:pass@tcp(127.0.0.1:3306)/chat?charset=utf8mb4&parseTime=true"
+
 # WebSocket 全链路（单条消息，验证端到端）
 go run ./cmd/ws_test/
 
-# 压力测试（并发消息，默认 10 对 × 50）
+# 压力测试（并发消息，默认 10 对 × 50 条）
 PAIRS=50 MSGS=100 go run ./cmd/stress_test/
 
-# 长时间稳定性（双 WS 在线，交替私聊+群聊+API，默认 10min）
+# 长时间稳定性（双 WS 在线，交替私聊+群聊+API，默认 10 轮）
 ROUNDS=10 MINUTES=1 go run ./cmd/long_test/
 
-# 全 API 端点测试（37 RESTful 端点逐个验证）
-TEST_TOKEN=<jwt> go run ./cmd/api_test/
+# 全 API 端点测试（37 RESTful 端点逐个验证，自动获取 Token）
+go run ./cmd/api_test/
 ```
 
 ### 7. 观测面板

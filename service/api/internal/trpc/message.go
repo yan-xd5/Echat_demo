@@ -1,4 +1,4 @@
-package main
+package trpc
 
 import (
 	"context"
@@ -9,15 +9,18 @@ import (
 	pb "echat/service/api/stub"
 )
 
+// MessageServiceService 消息服务接口。
 type MessageServiceService interface {
 	GetHistory(ctx context.Context, req *pb.GetHistoryRequest) (*pb.GetHistoryResponse, error)
 	MarkRead(ctx context.Context, req *pb.MarkReadRequest) (*pb.MarkReadResponse, error)
 }
 
 type bodyMarkRead struct{}
+
 func (bodyMarkRead) Locate(m restful.ProtoMessage) interface{} { return m.(*pb.MarkReadRequest) }
 func (bodyMarkRead) Body() string                              { return "*" }
 
+// MessageServiceServer_ServiceDesc 消息服务描述符。
 var MessageServiceServer_ServiceDesc = server.ServiceDesc{
 	ServiceName: "echat.api.MessageService",
 	HandlerType: ((*MessageServiceService)(nil)),
@@ -61,6 +64,7 @@ var MessageServiceServer_ServiceDesc = server.ServiceDesc{
 	},
 }
 
+// RegisterMessageServiceService 注册消息服务。
 func RegisterMessageServiceService(s server.Service, svr MessageServiceService) {
 	if err := s.Register(&MessageServiceServer_ServiceDesc, svr); err != nil {
 		panic("MessageService register error:" + err.Error())

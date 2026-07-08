@@ -1,4 +1,4 @@
-package main
+package trpc
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	pb "echat/service/api/stub"
 )
 
+// GroupServiceService 群组服务接口。
 type GroupServiceService interface {
 	CreateGroup(ctx context.Context, req *pb.CreateGroupRequest) (*pb.CreateGroupResponse, error)
 	JoinGroup(ctx context.Context, req *pb.JoinGroupRequest) (*pb.JoinGroupResponse, error)
@@ -18,17 +19,21 @@ type GroupServiceService interface {
 }
 
 type bodyCreateGroup struct{}
+
 func (bodyCreateGroup) Locate(m restful.ProtoMessage) interface{} { return m.(*pb.CreateGroupRequest) }
 func (bodyCreateGroup) Body() string                              { return "*" }
 
 type bodyJoinGroup struct{}
+
 func (bodyJoinGroup) Locate(m restful.ProtoMessage) interface{} { return m.(*pb.JoinGroupRequest) }
 func (bodyJoinGroup) Body() string                              { return "*" }
 
 type bodyLeaveGroup struct{}
+
 func (bodyLeaveGroup) Locate(m restful.ProtoMessage) interface{} { return m.(*pb.LeaveGroupRequest) }
 func (bodyLeaveGroup) Body() string                              { return "*" }
 
+// GroupServiceServer_ServiceDesc 群组服务描述符。
 var GroupServiceServer_ServiceDesc = server.ServiceDesc{
 	ServiceName: "echat.api.GroupService",
 	HandlerType: ((*GroupServiceService)(nil)),
@@ -126,6 +131,7 @@ var GroupServiceServer_ServiceDesc = server.ServiceDesc{
 	},
 }
 
+// RegisterGroupServiceService 注册群组服务。
 func RegisterGroupServiceService(s server.Service, svr GroupServiceService) {
 	if err := s.Register(&GroupServiceServer_ServiceDesc, svr); err != nil {
 		panic("GroupService register error:" + err.Error())

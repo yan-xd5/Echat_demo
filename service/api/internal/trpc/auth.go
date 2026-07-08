@@ -1,4 +1,4 @@
-package main
+package trpc
 
 import (
 	"context"
@@ -25,7 +25,12 @@ func (s *authImpl) GetPublicKey(ctx context.Context) (*structpb.Struct, error) {
 	}, nil
 }
 
-// AuthServiceServer_ServiceDesc 仅用于 RESTful 路由注册。
+// NewAuthHandler 创建认证 handler（用于 main.go 组装）。
+func NewAuthHandler() AuthServiceService {
+	return &authImpl{}
+}
+
+// AuthServiceServer_ServiceDesc 认证服务描述符（仅用于 RESTful 路由注册）。
 var AuthServiceServer_ServiceDesc = server.ServiceDesc{
 	ServiceName: "echat.api.UserService.http",
 	HandlerType: ((*AuthServiceService)(nil)),

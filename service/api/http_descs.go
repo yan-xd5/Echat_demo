@@ -2,6 +2,7 @@ package main
 
 import (
 	"echat/service/api/internal/restful"
+	"echat/service/api/internal/trpc"
 	pb "echat/service/api/stub"
 	"trpc.group/trpc-go/trpc-go/server"
 )
@@ -18,20 +19,20 @@ var userServiceHTTPDesc = server.ServiceDesc{
 
 var friendServiceHTTPDesc = server.ServiceDesc{
 	ServiceName: "echat.api.UserService.http",
-	HandlerType: FriendServiceServer_ServiceDesc.HandlerType,
-	Methods:     FriendServiceServer_ServiceDesc.Methods,
+	HandlerType: trpc.FriendServiceServer_ServiceDesc.HandlerType,
+	Methods:     trpc.FriendServiceServer_ServiceDesc.Methods,
 }
 
 var messageServiceHTTPDesc = server.ServiceDesc{
 	ServiceName: "echat.api.UserService.http",
-	HandlerType: MessageServiceServer_ServiceDesc.HandlerType,
-	Methods:     MessageServiceServer_ServiceDesc.Methods,
+	HandlerType: trpc.MessageServiceServer_ServiceDesc.HandlerType,
+	Methods:     trpc.MessageServiceServer_ServiceDesc.Methods,
 }
 
 var groupServiceHTTPDesc = server.ServiceDesc{
 	ServiceName: "echat.api.UserService.http",
-	HandlerType: GroupServiceServer_ServiceDesc.HandlerType,
-	Methods:     GroupServiceServer_ServiceDesc.Methods,
+	HandlerType: trpc.GroupServiceServer_ServiceDesc.HandlerType,
+	Methods:     trpc.GroupServiceServer_ServiceDesc.Methods,
 }
 
 var extraServiceHTTPDesc = server.ServiceDesc{
@@ -42,6 +43,6 @@ var extraServiceHTTPDesc = server.ServiceDesc{
 
 var fileServiceHTTPDesc = server.ServiceDesc{
 	ServiceName: "echat.api.UserService.http",
-	HandlerType: FileServiceServer_ServiceDesc.HandlerType,
-	Methods:     FileServiceServer_ServiceDesc.Methods,
+	HandlerType: trpc.FileServiceServer_ServiceDesc.HandlerType,
+	Methods:     trpc.FileServiceServer_ServiceDesc.Methods,
 }

@@ -44,7 +44,7 @@ func main() {
 
 	gateway := &session.Gateway{
 		GatewayID: env("GATEWAY_ID", "gw-01"), ConnMgr: connMgr, SessionRedis: sessionRedis,
-		Redis: redisCli, SessionRouter: route.NewSessionRouter(newTRPCDiscovery()),
+		Redis: redisCli, SessionRouter: route.NewSessionRouter(route.NewTRPCDiscovery("polarismesh", "default")),
 	}
 	session.StartKickListener(context.Background(), redisCli, connMgr, gateway.GatewayID)
 
@@ -68,12 +68,4 @@ func main() {
 	log.Infof("[Gateway] 启动 (gateway=%s, ws=%s)", gateway.GatewayID, wsPort)
 	if err := s.Serve(); err != nil { log.Error(err) }
 	log.Info("[Gateway] 已停止")
-}
-
-// ─── discovery ───
-func newTRPCDiscovery() route.ServiceDiscovery { return &trpcDiscoveryImpl{} }
-type trpcDiscoveryImpl struct{}
-func (d *trpcDiscoveryImpl) GetInstances(serviceName string) ([]route.ServiceInstance, error) {
-	// Uses Polaris SDK internally via naming/discovery
-	return nil, fmt.Errorf("not implemented: use route.NewTRPCDiscovery")
 }

@@ -1,4 +1,4 @@
-package main
+package trpc
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	pb "echat/service/api/stub"
 )
 
+// FriendServiceService 好友服务接口。
 type FriendServiceService interface {
 	ApplyFriend(ctx context.Context, req *pb.ApplyFriendRequest) (*pb.ApplyFriendResponse, error)
 	AcceptFriend(ctx context.Context, req *pb.AcceptFriendRequest) (*pb.AcceptFriendResponse, error)
@@ -18,19 +19,22 @@ type FriendServiceService interface {
 	ListRequests(ctx context.Context, req *pb.ListRequestsRequest) (*pb.ListRequestsResponse, error)
 }
 
-// RESTful body locators
 type bodyApplyFriend struct{}
+
 func (bodyApplyFriend) Locate(m restful.ProtoMessage) interface{} { return m.(*pb.ApplyFriendRequest) }
 func (bodyApplyFriend) Body() string                              { return "*" }
 
 type bodyAcceptFriend struct{}
+
 func (bodyAcceptFriend) Locate(m restful.ProtoMessage) interface{} { return m.(*pb.AcceptFriendRequest) }
 func (bodyAcceptFriend) Body() string                              { return "*" }
 
 type bodyRejectFriend struct{}
+
 func (bodyRejectFriend) Locate(m restful.ProtoMessage) interface{} { return m.(*pb.RejectFriendRequest) }
 func (bodyRejectFriend) Body() string                              { return "*" }
 
+// FriendServiceServer_ServiceDesc 好友服务描述符。
 var FriendServiceServer_ServiceDesc = server.ServiceDesc{
 	ServiceName: "echat.api.FriendService",
 	HandlerType: ((*FriendServiceService)(nil)),
@@ -146,6 +150,7 @@ var FriendServiceServer_ServiceDesc = server.ServiceDesc{
 	},
 }
 
+// RegisterFriendServiceService 注册好友服务。
 func RegisterFriendServiceService(s server.Service, svr FriendServiceService) {
 	if err := s.Register(&FriendServiceServer_ServiceDesc, svr); err != nil {
 		panic("FriendService register error:" + err.Error())

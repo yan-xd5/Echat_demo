@@ -1,4 +1,4 @@
-package main
+package filter
 
 import (
 	"context"
@@ -16,7 +16,6 @@ func init() {
 	filter.Register("myServerFilter", serverFilter, nil)
 }
 
-// ctxKey 是 context 的 key 类型
 type ctxKey string
 
 const (
@@ -24,7 +23,7 @@ const (
 	keyNickname ctxKey = "nickname"
 )
 
-// GetUserID 从 ctx 中提取 user_id
+// GetUserID 从 ctx 中提取 user_id。
 func GetUserID(ctx context.Context) string {
 	if v, ok := ctx.Value(keyUserID).(string); ok {
 		return v
@@ -32,7 +31,7 @@ func GetUserID(ctx context.Context) string {
 	return ""
 }
 
-// GetNickname 从 ctx 中提取昵称
+// GetNickname 从 ctx 中提取昵称。
 func GetNickname(ctx context.Context) string {
 	if v, ok := ctx.Value(keyNickname).(string); ok {
 		return v
@@ -52,8 +51,6 @@ func serverFilter(ctx context.Context, req interface{}, next filter.ServerHandle
 			log.ErrorContextf(ctx, "[Filter] Token 为空，拒绝请求")
 			return nil, fmt.Errorf("token 不能为空")
 		}
-
-		// SDK 解析 Token，提取用户信息写入 ctx
 		claims, err := auth.ParseToken(r.Token)
 		if err != nil {
 			log.ErrorContextf(ctx, "[Filter] Token 解析失败: %v", err)
