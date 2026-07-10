@@ -74,7 +74,11 @@ func main() {
 	wsURL := fmt.Sprintf("ws://127.0.0.1:9000/ws?ticket=%s", token)
 	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, http.Header{})
 	if err != nil {
-		fmt.Printf("❌ WebSocket 连接失败: %v (HTTP %d)\n", err, resp.StatusCode)
+		if resp != nil {
+			fmt.Printf("❌ WebSocket 连接失败: %v (HTTP %d)\n", err, resp.StatusCode)
+		} else {
+			fmt.Printf("❌ WebSocket 连接失败: %v\n", err)
+		}
 		os.Exit(1)
 	}
 	defer conn.Close()

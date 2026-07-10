@@ -14,9 +14,9 @@ import (
 	"trpc.group/trpc-go/trpc-go/log"
 	_ "trpc.group/trpc-go/trpc-naming-polarismesh"
 	_ "trpc.group/trpc-go/trpc-naming-polarismesh/registry"
-	_ "trpc.group/trpc-go/trpc-opentelemetry/oteltrpc"
 
 	"echat/sdk/infrastructure/observability"
+	_ "trpc.group/trpc-go/trpc-opentelemetry/oteltrpc"
 	"echat/sdk/usecase/route"
 
 	"echat/service/gateway/internal/handler"

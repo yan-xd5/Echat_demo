@@ -1,4 +1,4 @@
-// Package observability 统一观测能力初始化：Metrics（OTLP）、Profiling（pprof）、日志 TraceID。
+// Package observability 统一观测能力初始化：Trace + Metrics（OTLP）、Profiling（pprof）。
 package observability
 
 import (
@@ -6,21 +6,55 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/pprof"
+	"os"
 	"time"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/propagation"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
 )
 
+func init() {
+	// 在 oteltrpc 插件 init 之前创建带真实 OTLP exporter 的 TracerProvider。
+	// oteltrpc 插件会在 init 时缓存 Tracer，此后无法更换 Provider。
+	ep := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+	if ep == "" {
+		ep = "127.0.0.1:4318"
+	} else {
+		ep = stripScheme(ep)
+	}
+	svc := os.Getenv("OTEL_SERVICE_NAME")
+	if svc == "" {
+		svc = "echat"
+	}
+	res, _ := resource.New(context.Background(),
+		resource.WithAttributes(
+			attribute.String("service.name", svc),
+		),
+	)
+	exp, err := otlptracehttp.New(context.Background(),
+		otlptracehttp.WithEndpoint(ep),
+		otlptracehttp.WithInsecure(),
+	)
+	if err == nil {
+		otel.SetTracerProvider(sdktrace.NewTracerProvider(
+			sdktrace.WithBatcher(exp),
+			sdktrace.WithResource(res),
+		))
+	}
+}
+
 var (
-	meterProvider *sdkmetric.MeterProvider
-	globalMeter   metric.Meter
+	meterProvider  *sdkmetric.MeterProvider
+	tracerProvider *sdktrace.TracerProvider
+	globalMeter    metric.Meter
 )
 
 // InitConfig 观测初始化配置。
@@ -78,6 +112,9 @@ func Init(cfg InitConfig) (shutdown func(context.Context) error, err error) {
 	)
 	otel.SetMeterProvider(meterProvider)
 	globalMeter = otel.Meter(cfg.ServiceName)
+
+	// 注：TracerProvider 已在 init() 中创建（带 OTLP exporter），Init() 不再替换。
+	// 各服务需在启动前设置 OTEL_SERVICE_NAME 环境变量以区分 trace 来源。
 
 	// ─── Profiling: pprof HTTP ───
 	if cfg.PprofPort > 0 {

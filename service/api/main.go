@@ -11,6 +11,7 @@ import (
 
 	sdkredis "echat/sdk/repository/redis"
 	trpc "trpc.group/trpc-go/trpc-go"
+	"echat/sdk/infrastructure/observability"
 	_ "trpc.group/trpc-go/trpc-opentelemetry/oteltrpc"
 	_ "trpc.group/trpc-go/trpc-naming-polarismesh"
 	_ "trpc.group/trpc-go/trpc-naming-polarismesh/registry"
@@ -20,7 +21,6 @@ import (
 	"echat/sdk/usecase/auth"
 	"echat/sdk/infrastructure/idgen"
 	"echat/sdk/repository/mysql"
-	"echat/sdk/infrastructure/observability"
 	_ "echat/service/api/internal/filter"
 	"echat/service/api/internal/handler"
 	"echat/service/api/internal/restful"

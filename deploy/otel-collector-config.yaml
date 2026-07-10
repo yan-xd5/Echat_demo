@@ -15,6 +15,11 @@ processors:
   memory_limiter:
     check_interval: 5s
     limit_mib: 512
+  resource:
+    attributes:
+      - key: service.name
+        value: echat
+        action: upsert
 
 exporters:
   # Prometheus 指标导出
@@ -33,7 +38,7 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [memory_limiter, batch]
+      processors: [memory_limiter, resource, batch]
       exporters: [otlp/jaeger, logging]
     metrics:
       receivers: [otlp]

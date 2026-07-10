@@ -35,6 +35,6 @@ plugins:
   telemetry:
     opentelemetry:
       addr: http://127.0.0.1:4318
-      tenant_id: echat
+      tenant_id: echat-api
       sampler:
         fraction: 1.0

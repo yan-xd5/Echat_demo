@@ -12,10 +12,10 @@ import (
 	"trpc.group/trpc-go/trpc-go/log"
 	_ "trpc.group/trpc-go/trpc-naming-polarismesh"
 	_ "trpc.group/trpc-go/trpc-naming-polarismesh/registry"
-	_ "trpc.group/trpc-go/trpc-opentelemetry/oteltrpc"
 
-	"echat/sdk/repository/mysql"
 	"echat/sdk/infrastructure/observability"
+	_ "trpc.group/trpc-go/trpc-opentelemetry/oteltrpc"
+	"echat/sdk/repository/mysql"
 	"echat/sdk/usecase/route"
 
 	_ "echat/service/controller/internal/filter"

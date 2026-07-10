@@ -6,66 +6,26 @@
 
 ### SDK 四层架构
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    用例层（usecase）                      │
-│  auth/   JWT 签发校验 + RSA 密钥管理                      │
-│  message/ 消息体定义 + ACK 结构                           │
-│  route/  会话路由（哈希环）+ 序列号生成 + 服务发现            │
-├─────────────────────────────────────────────────────────┤
-│                    仓储层（repository）                    │
-│  mysql/  10 个 Repository：用户/好友/群组/消息/文件/鉴权      │
-│  redis/  在线状态管理（心跳 TTL + 批量查询）                 │
-├─────────────────────────────────────────────────────────┤
-│                    领域层（domain）                        │
-│  entity/  User、Message、Group、File 等纯数据实体           │
-├─────────────────────────────────────────────────────────┤
-│                  基础设施层（infrastructure）                │
-│  observability/  OTel Metrics + pprof + Filter 自动采集    │
-│  idgen/           Snowflake 分布式 ID + RequestID          │
-└─────────────────────────────────────────────────────────┘
-```
+| 层 | 职责 | 子包 | 依赖方向 |
+|----|------|------|----------|
+| 用例层 | 核心业务逻辑 | auth / route / message | → 仓储层 + 领域层 |
+| 仓储层 | 数据访问封装 | mysql (10 Repo) / redis | → 领域层 |
+| 领域层 | 纯数据结构 | entity | 无外部依赖 |
+| 基础设施层 | 横切能力 | observability / idgen | 被所有层引用 |
+
+### 服务分层
 
 每个服务内部按 Level 分层，依赖 SDK 四层：
 
-```
-Level 3 (入口)   main.go + config.go          启动、组装依赖、注册路由
-───────────────────────────────────────────────────────────────
-Level 2 (传输)   internal/trpc/               ServiceDesc + Register*
-                internal/restful/             RESTful 端点
-───────────────────────────────────────────────────────────────
-Level 1 (业务)   internal/handler/             tRPC 业务实现
-───────────────────────────────────────────────────────────────
-    ↓ 依赖 SDK
-Level 0 (SDK)    用例层          鉴权、路由、序列号
-                  ↓
-                仓储层          MySQL + Redis 数据访问
-                  ↓
-                领域层          数据实体
-                                ↕
-                基础设施层       观测、ID 生成（横切所有层）
+| 服务 | Level 3（入口） | Level 2（传输） | Level 1（业务） | 跨切 |
+|------|----------------|----------------|----------------|------|
+| API | main + config | trpc + restful | handler (用户/好友/群组/消息/文件) | filter (JWT 拦截) |
+| Controller | main + config | — | handler + pipeline | filter (Token 校验) |
+| Gateway | main + config | — | handler + session | — |
 
-跨切层         internal/filter/               tRPC filter 注入，横切所有请求
-```
-
-| 服务 | Level 3 | Level 2 | Level 1 | 跨切 |
-|------|---------|---------|---------|------|
-| API | main + config | trpc + restful (服务注册 + RESTful) | handler (用户/好友/群组/消息/文件) | filter (JWT 拦截) |
-| Controller | main + config | — | handler + pipeline (消息路由 + 处理管线) | filter (Token 校验) |
-| Gateway | main + config | — | handler + session (WS 握手 + 连接管理) | — |
-
-### 服务拓扑
-
-```
-Client ──WebSocket──→ Gateway(:9000) ──→ Controller(:8002) ──→ MySQL
-                           │                      │
-                       Polaris                Redis(seq_id/路由/在线状态)
-                           │
-Client ──HTTP REST──→ API(:9001) ──→ MySQL + Redis
-```
+### 服务职责
 
 | 服务 | 协议 | 端口 | 职责 |
-|------|------|------|------|
 | **Gateway** | WebSocket + tRPC | 9000 / 8003 | 长连接管理、协议转换、序列号生成、消息路由分发、跨网关顶号 |
 | **Controller** | tRPC | 8002 | 消息路由、去重、持久化、Push 推送、Token 校验 |
 | **API** | tRPC + RESTful | 8001 / 9001 | 用户/好友/群组/文件 CRUD、认证、RSA 加密 |
@@ -137,46 +97,20 @@ echat/
 └── docs/
 ```
 
-## 功能
+## 端口规划
 
-### 已实现
-
-- [x] 用户注册/登录（RSA-OAEP 加密密码 + bcrypt 存储）
-- [x] JWT Token 签发与校验（7 天有效期）
-- [x] 好友管理（申请/审批/删除/拉黑）
-- [x] 群组管理（创建/加入审批/踢人/禁言/解散）
-- [x] 私聊 + 群聊消息收发（全链路 WS → Gateway → Controller → MySQL → Push）
-- [x] 消息去重（Redis SETNX）、已读回执、撤回
-- [x] 文件上传/下载/权限管理/关联
-- [x] 会话列表（置顶、未读数）
-- [x] 在线状态查询、跨网关顶号
-- [x] 58 个 RESTful API 端点
-- [x] auth filter 集中拦截（非公开路由强制认证）
-- [x] 优雅关机（全部三服务）
-- [x] OpenTelemetry 全栈观测（Tracing + Metrics + Profiling）
-- [x] Grafana 预置仪表板（RPC 概览 + 业务指标 + 链路追踪）
-- [x] Polaris 服务发现（统一走 tRPC naming/discovery）
-- [x] Redis 统一走 tRPC goredis 插件
-
-## 服务端口
-
-| 服务 | 端口 | 协议 | 绑定 |
+| 服务 | 端口 | 协议 | 用途 |
 |------|------|------|------|
-| API tRPC | 8001 | tRPC | 127.0.0.1 |
-| API RESTful | 9001 | HTTP | 127.0.0.1 |
-| Controller | 8002 | tRPC | 127.0.0.1 |
-| Gateway tRPC | 8003 | tRPC | 127.0.0.1 |
-| Gateway WebSocket | 9000 | WS | 0.0.0.0 |
-| pprof (×3) | 6061-6063 | HTTP | 127.0.0.1 |
-
-## 观测端口
-
-| 服务 | 端口 | 用途 |
-|------|------|------|
-| Jaeger UI | 16686 | 链路追踪 |
-| Prometheus | 9090 | 指标查询 |
-| Grafana | 3000 | 统一可视化 (admin/admin) |
-| Pyroscope | 4040 | 持续 Profiling |
+| Gateway WebSocket | 9000 | WS | 客户端长连接 |
+| Gateway tRPC | 8003 | tRPC | Controller 回调推送 |
+| Controller | 8002 | tRPC | 消息路由处理 |
+| API tRPC | 8001 | tRPC | 内部服务调用 |
+| API RESTful | 9001 | HTTP | 客户端 RESTful 接口 |
+| pprof | 6061-6063 | HTTP | Go 性能剖析 |
+| Grafana | 3000 | HTTP | 统一可视化 |
+| Prometheus | 9090 | HTTP | 指标查询 |
+| Jaeger | 16686 | HTTP | 链路追踪 |
+| Pyroscope | 4040 | HTTP | 持续 Profiling |
 
 ## 快速开始
 
@@ -206,48 +140,49 @@ CREATE DATABASE chat DEFAULT CHARSET utf8mb4;
 
 ### 4. 配置
 
+**Bash:**
 ```bash
-# API 通过以下环境变量连接 MySQL：
-# DB_HOST=127.0.0.1  DB_PORT=3306  DB_USER=root  DB_PASS=your_password  DB_NAME=chat
-# Controller + Gateway 使用 MYSQL_DSN
 export MYSQL_DSN="root:pass@tcp(127.0.0.1:3306)/chat?charset=utf8mb4&parseTime=true"
 export JWT_SECRET="your-secret-key"
 ```
 
+**PowerShell:**
+```powershell
+$env:MYSQL_DSN="root:pass@tcp(127.0.0.1:3306)/chat?charset=utf8mb4&parseTime=true"
+$env:JWT_SECRET="your-secret-key"
+```
+
 ### 5. 启动
 
+**Bash:**
 ```bash
-# 设置环境变量（PowerShell: $env:KEY="value" / Bash: export KEY="value"）
-JWT_SECRET=your-secret
-MYSQL_DSN=root:pass@tcp(127.0.0.1:3306)/chat?charset=utf8mb4&parseTime=true
+cd service/gateway && go run .       # 终端 1：Gateway
+cd service/controller && go run .    # 终端 2：Controller
+cd service/api && go run .           # 终端 3：API
+```
 
-# 终端 1：Gateway
-cd service/gateway && go run .
-
-# 终端 2：Controller
-cd service/controller && go run .
-
-# 终端 3：API
-cd service/api && go run .
+**PowerShell:**
+```powershell
+cd service/gateway; go run .         # 终端 1：Gateway
+cd service/controller; go run .      # 终端 2：Controller
+cd service/api; go run .             # 终端 3：API
 ```
 
 ### 6. 测试
 
+**Bash:**
 ```bash
-# 环境变量
-export JWT_SECRET="your-secret"
-export MYSQL_DSN="root:pass@tcp(127.0.0.1:3306)/chat?charset=utf8mb4&parseTime=true"
+go run ./cmd/ws_test/                        # WS 全链路冒烟测试
+PAIRS=50 MSGS=100 go run ./cmd/stress_test/  # 并发压力测试
+ROUNDS=10 go run ./cmd/long_test/            # 长时间稳定性测试
+go run ./cmd/api_test/                       # 37 RESTful 端点回归测试
+```
 
-# WebSocket 全链路（单条消息，验证端到端）
+**PowerShell:**
+```powershell
 go run ./cmd/ws_test/
-
-# 压力测试（并发消息，默认 10 对 × 50 条）
-PAIRS=50 MSGS=100 go run ./cmd/stress_test/
-
-# 长时间稳定性（双 WS 在线，交替私聊+群聊+API，默认 10 轮）
-ROUNDS=10 MINUTES=1 go run ./cmd/long_test/
-
-# 全 API 端点测试（37 RESTful 端点逐个验证，自动获取 Token）
+$env:PAIRS="50"; $env:MSGS="100"; go run ./cmd/stress_test/
+$env:ROUNDS="10"; go run ./cmd/long_test/
 go run ./cmd/api_test/
 ```
 
