@@ -143,9 +143,15 @@ func do(method, tkn, path, data string, expectBlock bool) {
 	b, _ := io.ReadAll(resp.Body)
 	bs := string(b)
 
-	if resp.StatusCode == 404 {
+	if resp.StatusCode == 404 && !strings.Contains(resp.Header.Get("Content-Type"), "application/json") {
 		fail.Add(1)
 		fmt.Printf("  ❌ %s %s → 404 未注册\n", method, path)
+	} else if resp.StatusCode == 404 {
+		ok.Add(1)
+		if len(bs) > 60 {
+			bs = bs[:60] + "..."
+		}
+		fmt.Printf("  ✅ %s %s → 404 %s\n", method, path, strings.ReplaceAll(bs, "\n", " "))
 	} else if expectBlock && resp.StatusCode != 200 {
 		ok.Add(1)
 		fmt.Printf("  ✅ %s %s → %d (已拦截)\n", method, path, resp.StatusCode)

@@ -1,0 +1,11 @@
+.git
+.gitignore
+*.md
+*.yml
+*.yaml
+**/cmd/**
+**/*_test.go
+**/vendor/
+deploy/
+interview/
+docs/

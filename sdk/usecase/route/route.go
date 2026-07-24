@@ -180,32 +180,16 @@ func (r *SessionRouter) buildRing(instances []ServiceInstance) {
 
 
 // ============================================================
-// GenSeqID — Redis 分布式锁 + INCR
+// GenSeqID — Redis INCR
 // ============================================================
 
-// GenSeqID 通过 Redis SETNX 锁 + INCR 获取会话内严格递增的 seq_id。
-// 锁超时 100ms，获取失败重试 1 次。
+// GenSeqID 通过 Redis INCR 获取会话内严格递增的 seq_id。
+// Redis INCR 本身是原子操作，不需要额外加锁。
 func GenSeqID(ctx context.Context, rdb *redis.Client, sessionID string) (int64, error) {
-	lockKey := "lock:seq:" + sessionID
 	seqKey := "seq:" + sessionID
-	lockVal := fmt.Sprintf("%d", time.Now().UnixNano())
-
-	for attempt := 0; attempt < 2; attempt++ {
-		ok, err := rdb.SetNX(ctx, lockKey, lockVal, 100*time.Millisecond).Result()
-		if err != nil {
-			return 0, fmt.Errorf("seq lock error: %w", err)
-		}
-		if ok {
-			defer rdb.Del(ctx, lockKey)
-			seq, err := rdb.Incr(ctx, seqKey).Result()
-			if err != nil {
-				return 0, fmt.Errorf("seq incr error: %w", err)
-			}
-			return seq, nil
-		}
-		if attempt == 0 {
-			time.Sleep(10 * time.Millisecond)
-		}
+	seq, err := rdb.Incr(ctx, seqKey).Result()
+	if err != nil {
+		return 0, fmt.Errorf("seq incr error: %w", err)
 	}
-	return 0, fmt.Errorf("seq lock timeout for session %s", sessionID)
+	return seq, nil
 }

@@ -1,0 +1,42 @@
+server:
+  filter:
+    - opentelemetry
+    - metrics
+    - apiAuth
+  service:
+    - name: echat.api.UserService
+      ip: api
+      port: 8001
+      protocol: trpc
+      registry: polarismesh            # ★ 注册到北极星
+
+    - name: echat.api.UserService.http
+      ip: api
+      port: 9001
+      protocol: restful
+
+client:
+  service:
+    - name: echat.redis.service
+      target: redis://redis:6379/0
+      timeout: 60000
+
+plugins:
+  registry:
+    polarismesh:
+      register_self: true
+      protocol: grpc
+      address_list: polaris:8091
+      debug: true
+      disable_health_check: true
+      service:
+        - name: echat.api.UserService
+          namespace: default
+          token: polaris
+
+  telemetry:
+    opentelemetry:
+      addr: http://127.0.0.1:4318
+      tenant_id: echat-api
+      sampler:
+        fraction: 1.0

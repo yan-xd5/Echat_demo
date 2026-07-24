@@ -1,0 +1,103 @@
+services:
+  # ==================== 基础设施 ====================
+
+  polaris:
+    image: polarismesh/polaris-standalone:latest
+    ports:
+      - "8090:8090"
+      - "8091:8091"
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-sysu}
+      MYSQL_DATABASE: chat
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --appendfsync everysec
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  # ==================== 业务服务 ====================
+
+  controller:
+    build:
+      context: .
+      dockerfile: service/controller/Dockerfile
+    ports:
+      - "8002:8002"
+    environment:
+      - MYSQL_DSN=root:${MYSQL_ROOT_PASSWORD:-sysu}@tcp(mysql:3306)/chat?charset=utf8mb4&parseTime=true
+      - JWT_SECRET=${JWT_SECRET}
+      - SNOWFLAKE_WORKER_ID=1
+      - GOLANG_PROTOBUF_REGISTRATION_CONFLICT=warn
+    depends_on:
+      mysql:
+        condition: service_healthy
+      polaris:
+        condition: service_started
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  gateway-1:
+    build:
+      context: .
+      dockerfile: service/gateway/Dockerfile
+    ports:
+      - "9000:9000"
+      - "8003:8003"
+    environment:
+      - GATEWAY_ID=gw-01
+      - WS_PORT=9000
+      - JWT_SECRET=${JWT_SECRET}
+      - MAX_CONN=100000
+      - GOLANG_PROTOBUF_REGISTRATION_CONFLICT=warn
+    depends_on:
+      - controller
+      - redis
+      - polaris
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: service/api/Dockerfile
+    ports:
+      - "8001:8001"
+      - "9001:9001"
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=root
+      - DB_PASS=${MYSQL_ROOT_PASSWORD:-sysu}
+      - DB_NAME=chat
+      - JWT_SECRET=${JWT_SECRET}
+      - SNOWFLAKE_WORKER_ID=2
+      - GOLANG_PROTOBUF_REGISTRATION_CONFLICT=warn
+    depends_on:
+      mysql:
+        condition: service_healthy
+      polaris:
+        condition: service_started
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+  redis_data:

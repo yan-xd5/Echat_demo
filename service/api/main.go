@@ -6,6 +6,7 @@ import (
 	"os/signal"
 	"strconv"
 	"syscall"
+	"time"
 
 	redis "github.com/redis/go-redis/v9"
 
@@ -33,15 +34,21 @@ func main() {
 
 	dsn := GetDSN()
 	db, err := mysql.NewDB(dsn)
-	if err != nil { log.Fatalf("[API] MySQL: %v", err) }
+	if err != nil {
+		log.Fatalf("[API] MySQL: %v", err)
+	}
 	defer db.Close()
 
 	workerID := int64(1)
 	if s := os.Getenv("SNOWFLAKE_WORKER_ID"); s != "" {
-		if v, _ := strconv.ParseInt(s, 10, 64); v >= 1 && v <= 1023 { workerID = v }
+		if v, _ := strconv.ParseInt(s, 10, 64); v >= 1 && v <= 1023 {
+			workerID = v
+		}
 	}
 	idGen, err := idgen.NewSnowflake(workerID)
-	if err != nil { log.Fatalf("[API] Snowflake: %v", err) }
+	if err != nil {
+		log.Fatalf("[API] Snowflake: %v", err)
+	}
 
 	userRepo := mysql.NewUserRepo(db)
 	friendRepo := mysql.NewFriendRepo(db)
@@ -57,19 +64,29 @@ func main() {
 	fileSvc := handler.NewFileImpl(fileRepo, idGen)
 
 	universalCli, err := goredis.New("echat.redis.service")
-	if err != nil { log.Fatalf("[API] Redis: %v", err) }
+	if err != nil {
+		log.Fatalf("[API] Redis: %v", err)
+	}
 	redisCli, ok := universalCli.(*redis.Client)
-	if !ok { log.Fatalf("[API] Redis type error") }
+	if !ok {
+		log.Fatalf("[API] Redis type error")
+	}
 	onlineRepo := sdkredis.NewOnlineRepo(redisCli)
 
-	if err := auth.InitRSA(); err != nil { log.Fatalf("[API] RSA: %v", err) }
+	if err := auth.InitRSA(); err != nil {
+		log.Fatalf("[API] RSA: %v", err)
+	}
 
 	obsShutdown, err := observability.Init(observability.InitConfig{
 		ServiceName: "echat-api", ServiceVersion: "1.0.0",
 		OTLPEndpoint: envOr("OTEL_EXPORTER_OTLP_ENDPOINT", "http://127.0.0.1:4318"), PprofPort: 6061,
 	})
-	if err != nil { log.Warnf("[API] obs: %v", err) }
-	if obsShutdown != nil { defer func() { obsShutdown(context.Background()) }() }
+	if err != nil {
+		log.Warnf("[API] obs: %v", err)
+	}
+	if obsShutdown != nil {
+		defer func() { obsShutdown(context.Background()) }()
+	}
 	observability.InitBusinessMetrics()
 
 	pb.RegisterUserServiceService(s, svc)
@@ -102,14 +119,25 @@ func main() {
 	restful.RegisterExtraService(s, extraSvc)
 	s.Register(&extraServiceHTTPDesc, extraSvc)
 
+	// 优雅关闭
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
 	go func() {
-		ch := make(chan os.Signal, 1)
-		signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
-		log.Infof("[API] 收到信号 %v", <-ch)
+		<-ctx.Done()
+		log.Info("[API] 收到关闭信号，开始优雅退出...")
 		s.Close(nil)
+
+		// 等待在途 HTTP 请求完成（最长 30s）
+		timer := time.NewTimer(30 * time.Second)
+		defer timer.Stop()
+		<-timer.C
+		log.Info("[API] 优雅退出完成")
 	}()
 
 	log.Info("[API] 启动中...")
-	if err := s.Serve(); err != nil { log.Error(err) }
+	if err := s.Serve(); err != nil {
+		log.Error(err)
+	}
 	log.Info("[API] 已停止")
 }
