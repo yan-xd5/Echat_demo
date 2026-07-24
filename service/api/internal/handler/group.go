@@ -6,6 +6,7 @@ import (
 
 	"trpc.group/trpc-go/trpc-go/log"
 
+	sdkredis "echat/sdk/repository/redis"
 	"echat/sdk/domain/entity"
 	"echat/sdk/infrastructure/idgen"
 	"echat/sdk/repository/mysql"
@@ -17,6 +18,7 @@ import (
 type GroupImpl struct {
 	GroupRepo *mysql.GroupRepo
 	IDGen     *idgen.Snowflake
+	CacheRepo *sdkredis.CacheRepo
 }
 
 // CreateGroup 创建群聊。
@@ -43,6 +45,7 @@ func (s *GroupImpl) CreateGroup(ctx context.Context, req *pb.CreateGroupRequest)
 	}
 
 	log.InfoContextf(ctx, "[API] 创建群聊: gid=%s, name=%s, owner=%s", gid, req.GroupName, uid)
+	s.CacheRepo.DeleteUserGroups(ctx, uid)
 	return &pb.CreateGroupResponse{Gid: gid}, nil
 }
 
@@ -118,6 +121,8 @@ func (s *GroupImpl) LeaveGroup(ctx context.Context, req *pb.LeaveGroupRequest) (
 	}
 
 	log.InfoContextf(ctx, "[API] 退出群聊: gid=%s, uid=%s", req.Gid, uid)
+	s.CacheRepo.DeleteGroupMembers(ctx, req.Gid)
+	s.CacheRepo.DeleteUserGroups(ctx, uid)
 	return &pb.LeaveGroupResponse{}, nil
 }
 
@@ -130,9 +135,18 @@ func (s *GroupImpl) GetMembers(ctx context.Context, req *pb.GetMembersRequest) (
 	if _, err := s.GroupRepo.FindMember(ctx, req.Gid, uid); err != nil {
 		return nil, fmt.Errorf("不是群成员")
 	}
-	members, err := s.GroupRepo.FindMembersByGroup(ctx, req.Gid)
-	if err != nil {
-		return nil, fmt.Errorf("查成员列表失败: %w", err)
+
+	// 缓存优先
+	var members []*entity.GroupMember
+	if cached, ok := s.CacheRepo.GetGroupMembers(ctx, req.Gid); ok {
+		members = cached
+	} else {
+		var e error
+		members, e = s.GroupRepo.FindMembersByGroup(ctx, req.Gid)
+		if e != nil {
+			return nil, fmt.Errorf("查成员列表失败: %w", e)
+		}
+		s.CacheRepo.SetGroupMembers(ctx, req.Gid, members)
 	}
 
 	var list []*pb.MemberInfo
@@ -156,9 +170,17 @@ func (s *GroupImpl) GetMyGroups(ctx context.Context, req *pb.GetMyGroupsRequest)
 		return nil, fmt.Errorf("未登录")
 	}
 
-	members, err := s.GroupRepo.FindGroupsByUser(ctx, uid)
-	if err != nil {
-		return nil, fmt.Errorf("查群列表失败: %w", err)
+	// 缓存优先
+	var members []*entity.GroupMember
+	if cached, ok := s.CacheRepo.GetUserGroups(ctx, uid); ok {
+		members = cached
+	} else {
+		var e error
+		members, e = s.GroupRepo.FindGroupsByUser(ctx, uid)
+		if e != nil {
+			return nil, fmt.Errorf("查群列表失败: %w", e)
+		}
+		s.CacheRepo.SetUserGroups(ctx, uid, members)
 	}
 
 	// 批量查询群信息和成员数（避免 N+1）
@@ -189,6 +211,6 @@ func (s *GroupImpl) GetMyGroups(ctx context.Context, req *pb.GetMyGroupsRequest)
 
 	return &pb.GetMyGroupsResponse{Groups: list}, nil
 }
-func NewGroupImpl(GroupRepo *mysql.GroupRepo, IDGen *idgen.Snowflake) *GroupImpl {
-	return &GroupImpl{GroupRepo: GroupRepo, IDGen: IDGen}
+func NewGroupImpl(GroupRepo *mysql.GroupRepo, IDGen *idgen.Snowflake, cacheRepo *sdkredis.CacheRepo) *GroupImpl {
+	return &GroupImpl{GroupRepo: GroupRepo, IDGen: IDGen, CacheRepo: cacheRepo}
 }

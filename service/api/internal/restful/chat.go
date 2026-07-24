@@ -19,13 +19,14 @@ type ExtraChatImpl struct {
 	GroupMsgRepo *mysql.GroupMessageRepo
 	OnlineRepo   *redis.OnlineRepo
 	UserRepo     *mysql.UserRepo
+	CacheRepo    *redis.CacheRepo
 }
 
 // NewExtraChatImpl 创建 ExtraChatImpl。
-func NewExtraChatImpl(privateRepo *mysql.PrivateChatRepo, groupRepo *mysql.GroupRepo, groupMsgRepo *mysql.GroupMessageRepo, onlineRepo *redis.OnlineRepo, userRepo *mysql.UserRepo) *ExtraChatImpl {
+func NewExtraChatImpl(privateRepo *mysql.PrivateChatRepo, groupRepo *mysql.GroupRepo, groupMsgRepo *mysql.GroupMessageRepo, onlineRepo *redis.OnlineRepo, userRepo *mysql.UserRepo, cacheRepo *redis.CacheRepo) *ExtraChatImpl {
 	return &ExtraChatImpl{
 		PrivateRepo: privateRepo, GroupRepo: groupRepo, GroupMsgRepo: groupMsgRepo,
-		OnlineRepo: onlineRepo, UserRepo: userRepo,
+		OnlineRepo: onlineRepo, UserRepo: userRepo, CacheRepo: cacheRepo,
 	}
 }
 
@@ -225,6 +226,9 @@ func (s *ExtraChatImpl) DisbandGroup(ctx context.Context) {
 		shared.WriteJSON(ctx, w, 500, map[string]interface{}{"code": 999, "message": err.Error()})
 		return
 	}
+	s.CacheRepo.DeleteGroup(ctx, req.Gid)
+	s.CacheRepo.DeleteGroupMembers(ctx, req.Gid)
+	s.CacheRepo.DeleteUserGroups(ctx, uid)
 	shared.WriteJSON(ctx, w, 200, map[string]interface{}{"code": 0, "message": "群已解散"})
 }
 

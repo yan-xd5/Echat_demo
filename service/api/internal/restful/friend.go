@@ -7,17 +7,19 @@ import (
 	thttp "trpc.group/trpc-go/trpc-go/http"
 
 	"echat/sdk/repository/mysql"
+	sdkredis "echat/sdk/repository/redis"
 	"echat/service/api/internal/shared"
 )
 
 // ExtraFriendImpl 好友相关的额外 RESTful API。
 type ExtraFriendImpl struct {
 	FriendRepo *mysql.FriendRepo
+	CacheRepo  *sdkredis.CacheRepo
 }
 
 // NewExtraFriendImpl 创建 ExtraFriendImpl。
-func NewExtraFriendImpl(friendRepo *mysql.FriendRepo) *ExtraFriendImpl {
-	return &ExtraFriendImpl{FriendRepo: friendRepo}
+func NewExtraFriendImpl(friendRepo *mysql.FriendRepo, cacheRepo *sdkredis.CacheRepo) *ExtraFriendImpl {
+	return &ExtraFriendImpl{FriendRepo: friendRepo, CacheRepo: cacheRepo}
 }
 
 // BlacklistFriend 拉黑好友。
@@ -48,6 +50,8 @@ func (s *ExtraFriendImpl) BlacklistFriend(ctx context.Context) {
 		shared.WriteJSON(ctx, w, 500, map[string]interface{}{"code": 999, "message": err.Error()})
 		return
 	}
+	s.CacheRepo.DeleteFriends(ctx, f.UID)
+	s.CacheRepo.DeleteFriends(ctx, f.ToUID)
 	shared.WriteJSON(ctx, w, 200, map[string]interface{}{"code": 0, "message": "已拉黑"})
 }
 
@@ -79,5 +83,7 @@ func (s *ExtraFriendImpl) UnblacklistFriend(ctx context.Context) {
 		shared.WriteJSON(ctx, w, 500, map[string]interface{}{"code": 999, "message": err.Error()})
 		return
 	}
+	s.CacheRepo.DeleteFriends(ctx, f.UID)
+	s.CacheRepo.DeleteFriends(ctx, f.ToUID)
 	shared.WriteJSON(ctx, w, 200, map[string]interface{}{"code": 0, "message": "已取消拉黑"})
 }

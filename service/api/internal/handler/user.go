@@ -9,6 +9,7 @@ import (
 
 	"trpc.group/trpc-go/trpc-go/log"
 
+	sdkredis "echat/sdk/repository/redis"
 	"echat/sdk/usecase/auth"
 	"echat/sdk/domain/entity"
 	"echat/sdk/infrastructure/idgen"
@@ -23,10 +24,11 @@ type UserImpl struct {
 	UserRepo   *mysql.UserRepo
 	FriendRepo *mysql.FriendRepo
 	IDGen      *idgen.Snowflake
+	CacheRepo  *sdkredis.CacheRepo
 }
 
-func NewUserImpl(userRepo *mysql.UserRepo, friendRepo *mysql.FriendRepo, idGen *idgen.Snowflake) *UserImpl {
-	return &UserImpl{UserRepo: userRepo, FriendRepo: friendRepo, IDGen: idGen}
+func NewUserImpl(userRepo *mysql.UserRepo, friendRepo *mysql.FriendRepo, idGen *idgen.Snowflake, cacheRepo *sdkredis.CacheRepo) *UserImpl {
+	return &UserImpl{UserRepo: userRepo, FriendRepo: friendRepo, IDGen: idGen, CacheRepo: cacheRepo}
 }
 
 func (s *UserImpl) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.RegisterResponse, error) {
@@ -99,10 +101,20 @@ func (s *UserImpl) GetUserInfo(ctx context.Context, req *pb.GetUserInfoRequest) 
 			return nil, fmt.Errorf("无权查看该用户档案")
 		}
 	}
-	u, err := s.UserRepo.FindUserByUID(ctx, req.Uid)
-	if err != nil {
-		return nil, fmt.Errorf("用户不存在")
+
+	// 缓存优先
+	var u *entity.User
+	if cached, ok := s.CacheRepo.GetUser(ctx, req.Uid); ok {
+		u = cached
+	} else {
+		var err error
+		u, err = s.UserRepo.FindUserByUID(ctx, req.Uid)
+		if err != nil {
+			return nil, fmt.Errorf("用户不存在")
+		}
+		s.CacheRepo.SetUser(ctx, req.Uid, u)
 	}
+
 	return &pb.GetUserInfoResponse{
 		User: &pb.User{
 			Uid: u.UID, Account: u.Account, Username: u.Username,

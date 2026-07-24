@@ -21,17 +21,19 @@ type ExtraFinalImpl struct {
 	GroupMsgRepo *mysql.GroupMessageRepo
 	FileRepo     *mysql.FileRepo
 	OnlineRepo   *redis.OnlineRepo
+	CacheRepo    *redis.CacheRepo
 }
 
 // NewExtraFinalImpl 创建 ExtraFinalImpl。
 func NewExtraFinalImpl(
 	userRepo *mysql.UserRepo, friendRepo *mysql.FriendRepo, privateRepo *mysql.PrivateChatRepo,
 	groupRepo *mysql.GroupRepo, groupMsgRepo *mysql.GroupMessageRepo, fileRepo *mysql.FileRepo,
-	onlineRepo *redis.OnlineRepo,
+	onlineRepo *redis.OnlineRepo, cacheRepo *redis.CacheRepo,
 ) *ExtraFinalImpl {
 	return &ExtraFinalImpl{
 		UserRepo: userRepo, FriendRepo: friendRepo, PrivateRepo: privateRepo,
 		GroupRepo: groupRepo, GroupMsgRepo: groupMsgRepo, FileRepo: fileRepo, OnlineRepo: onlineRepo,
+		CacheRepo: cacheRepo,
 	}
 }
 
@@ -75,6 +77,9 @@ func (s *ExtraFinalImpl) DeleteAccount(ctx context.Context) {
 		shared.WriteJSON(ctx, w, 500, shared.MsgError(err.Error()))
 		return
 	}
+	s.CacheRepo.DeleteUser(ctx, uid)
+	s.CacheRepo.DeleteFriends(ctx, uid)
+	s.CacheRepo.DeleteUserGroups(ctx, uid)
 	shared.WriteJSON(ctx, w, 200, shared.MsgSuccess("账号已注销"))
 }
 

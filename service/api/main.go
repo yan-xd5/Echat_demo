@@ -55,13 +55,7 @@ func main() {
 	msgRepo := mysql.NewMessageRepo(db)
 	groupRepo := mysql.NewGroupRepo(db)
 	fileRepo := mysql.NewFileRepo(db)
-
-	svc := handler.NewUserImpl(userRepo, friendRepo, idGen)
-	friendSvc := handler.NewFriendImpl(friendRepo, idGen)
 	chatRepo := mysql.NewPrivateChatRepo(db)
-	msgSvc := handler.NewMessageImpl(msgRepo, chatRepo, groupRepo)
-	groupSvc := handler.NewGroupImpl(groupRepo, idGen)
-	fileSvc := handler.NewFileImpl(fileRepo, idGen)
 
 	universalCli, err := goredis.New("echat.redis.service")
 	if err != nil {
@@ -72,6 +66,13 @@ func main() {
 		log.Fatalf("[API] Redis type error")
 	}
 	onlineRepo := sdkredis.NewOnlineRepo(redisCli)
+	cacheRepo := sdkredis.NewCacheRepo(redisCli)
+
+	svc := handler.NewUserImpl(userRepo, friendRepo, idGen, cacheRepo)
+	friendSvc := handler.NewFriendImpl(friendRepo, idGen, cacheRepo)
+	msgSvc := handler.NewMessageImpl(msgRepo, chatRepo, groupRepo)
+	groupSvc := handler.NewGroupImpl(groupRepo, idGen, cacheRepo)
+	fileSvc := handler.NewFileImpl(fileRepo, idGen)
 
 	if err := auth.InitRSA(); err != nil {
 		log.Fatalf("[API] RSA: %v", err)
@@ -103,17 +104,17 @@ func main() {
 	s.Register(&fileServiceHTTPDesc, fileSvc)
 
 	extraSvc := &restful.ExtraService{
-		User:    restful.NewExtraUserImpl(userRepo),
-		Friend:  restful.NewExtraFriendImpl(friendRepo),
+		User:    restful.NewExtraUserImpl(userRepo, cacheRepo),
+		Friend:  restful.NewExtraFriendImpl(friendRepo, cacheRepo),
 		Message: restful.NewExtraMessageImpl(msgRepo, chatRepo, mysql.NewGroupMessageRepo(db)),
-		Group:   restful.NewExtraGroupImpl(groupRepo, idGen),
+		Group:   restful.NewExtraGroupImpl(groupRepo, idGen, cacheRepo),
 		File:    restful.NewExtraFileImpl(fileRepo, idGen),
 		Misc:    restful.NewExtraMiscImpl(userRepo, fileRepo, mysql.NewGroupMessageRepo(db)),
 		Final: restful.NewExtraFinalImpl(
-			userRepo, friendRepo, chatRepo, groupRepo, mysql.NewGroupMessageRepo(db), fileRepo, onlineRepo,
+			userRepo, friendRepo, chatRepo, groupRepo, mysql.NewGroupMessageRepo(db), fileRepo, onlineRepo, cacheRepo,
 		),
 		Chat: restful.NewExtraChatImpl(
-			chatRepo, groupRepo, mysql.NewGroupMessageRepo(db), onlineRepo, userRepo,
+			chatRepo, groupRepo, mysql.NewGroupMessageRepo(db), onlineRepo, userRepo, cacheRepo,
 		),
 	}
 	restful.RegisterExtraService(s, extraSvc)

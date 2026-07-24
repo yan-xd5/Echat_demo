@@ -7,6 +7,7 @@ import (
 
 	"trpc.group/trpc-go/trpc-go/log"
 
+	sdkredis "echat/sdk/repository/redis"
 	"echat/sdk/domain/entity"
 	"echat/sdk/infrastructure/idgen"
 	"echat/sdk/repository/mysql"
@@ -18,6 +19,7 @@ import (
 type FriendImpl struct {
 	FriendRepo *mysql.FriendRepo
 	IDGen      *idgen.Snowflake
+	CacheRepo  *sdkredis.CacheRepo
 }
 
 // ApplyFriend 发送好友申请。
@@ -86,6 +88,8 @@ func (s *FriendImpl) AcceptFriend(ctx context.Context, req *pb.AcceptFriendReque
 	}
 
 	log.InfoContextf(ctx, "[API] 好友申请通过: req_id=%s, fid=%s", req.ReqId, fid)
+	s.CacheRepo.DeleteFriends(ctx, fr.SenderUID)
+	s.CacheRepo.DeleteFriends(ctx, fr.ReceiverUID)
 	return &pb.AcceptFriendResponse{Fid: fid}, nil
 }
 
@@ -129,6 +133,8 @@ func (s *FriendImpl) DeleteFriend(ctx context.Context, req *pb.DeleteFriendReque
 		return nil, fmt.Errorf("删除好友失败: %w", err)
 	}
 	log.InfoContextf(ctx, "[API] 删除好友: fid=%s", req.Fid)
+	s.CacheRepo.DeleteFriends(ctx, f.UID)
+	s.CacheRepo.DeleteFriends(ctx, f.ToUID)
 	return &pb.DeleteFriendResponse{}, nil
 }
 
@@ -139,9 +145,17 @@ func (s *FriendImpl) ListFriends(ctx context.Context, req *pb.ListFriendsRequest
 		return nil, fmt.Errorf("未登录")
 	}
 
-	friends, err := s.FriendRepo.FindFriendshipByUID(ctx, uid)
-	if err != nil {
-		return nil, fmt.Errorf("查好友列表失败: %w", err)
+	// 缓存优先
+	var friends []*entity.Friends
+	if cached, ok := s.CacheRepo.GetFriends(ctx, uid); ok {
+		friends = cached
+	} else {
+		var err error
+		friends, err = s.FriendRepo.FindFriendshipByUID(ctx, uid)
+		if err != nil {
+			return nil, fmt.Errorf("查好友列表失败: %w", err)
+		}
+		s.CacheRepo.SetFriends(ctx, uid, friends)
 	}
 
 	var list []*pb.FriendInfo
@@ -220,6 +234,6 @@ func (s *FriendImpl) ListRequests(ctx context.Context, req *pb.ListRequestsReque
 }
 
 
-func NewFriendImpl(FriendRepo *mysql.FriendRepo, IDGen *idgen.Snowflake) *FriendImpl {
-	return &FriendImpl{FriendRepo: FriendRepo, IDGen: IDGen}
+func NewFriendImpl(FriendRepo *mysql.FriendRepo, IDGen *idgen.Snowflake, cacheRepo *sdkredis.CacheRepo) *FriendImpl {
+	return &FriendImpl{FriendRepo: FriendRepo, IDGen: IDGen, CacheRepo: cacheRepo}
 }

@@ -9,6 +9,7 @@ import (
 	"echat/sdk/domain/entity"
 	"echat/sdk/infrastructure/idgen"
 	"echat/sdk/repository/mysql"
+	sdkredis "echat/sdk/repository/redis"
 	"echat/service/api/internal/shared"
 )
 
@@ -16,11 +17,12 @@ import (
 type ExtraGroupImpl struct {
 	GroupRepo *mysql.GroupRepo
 	IDGen     *idgen.Snowflake
+	CacheRepo *sdkredis.CacheRepo
 }
 
 // NewExtraGroupImpl 创建 ExtraGroupImpl。
-func NewExtraGroupImpl(groupRepo *mysql.GroupRepo, idGen *idgen.Snowflake) *ExtraGroupImpl {
-	return &ExtraGroupImpl{GroupRepo: groupRepo, IDGen: idGen}
+func NewExtraGroupImpl(groupRepo *mysql.GroupRepo, idGen *idgen.Snowflake, cacheRepo *sdkredis.CacheRepo) *ExtraGroupImpl {
+	return &ExtraGroupImpl{GroupRepo: groupRepo, IDGen: idGen, CacheRepo: cacheRepo}
 }
 
 // KickMember 踢出成员。
@@ -55,6 +57,8 @@ func (s *ExtraGroupImpl) KickMember(ctx context.Context) {
 		shared.WriteJSON(ctx, w, 500, map[string]interface{}{"code": 999, "message": err.Error()})
 		return
 	}
+	s.CacheRepo.DeleteGroupMembers(ctx, req.Gid)
+	s.CacheRepo.DeleteUserGroups(ctx, req.TargetUid)
 	shared.WriteJSON(ctx, w, 200, map[string]interface{}{"code": 0, "message": "已踢出"})
 }
 
@@ -150,6 +154,7 @@ func (s *ExtraGroupImpl) UpdateMemberRole(ctx context.Context) {
 		shared.WriteJSON(ctx, w, 500, map[string]interface{}{"code": 999, "message": err.Error()})
 		return
 	}
+	s.CacheRepo.DeleteGroupMembers(ctx, req.Gid)
 	shared.WriteJSON(ctx, w, 200, map[string]interface{}{"code": 0, "message": "角色已修改"})
 }
 
@@ -244,6 +249,8 @@ func (s *ExtraGroupImpl) ApproveGroupRequest(ctx context.Context) {
 			shared.WriteJSON(ctx, w, 500, map[string]interface{}{"code": 999, "message": err.Error()})
 			return
 		}
+			s.CacheRepo.DeleteGroupMembers(ctx, gr.GID)
+			s.CacheRepo.DeleteUserGroups(ctx, gr.ApplicantUID)
 	} else {
 		if err := s.GroupRepo.UpdateGroupRequestStatus(ctx, req.ReqId, entity.ReqStatusRejected, uid, 0); err != nil {
 			shared.WriteJSON(ctx, w, 500, map[string]interface{}{"code": 999, "message": err.Error()})

@@ -8,17 +8,19 @@ import (
 
 	"echat/sdk/domain/entity"
 	"echat/sdk/repository/mysql"
+	sdkredis "echat/sdk/repository/redis"
 	"echat/service/api/internal/shared"
 )
 
 // ExtraUserImpl 用户相关的额外 RESTful API。
 type ExtraUserImpl struct {
-	UserRepo *mysql.UserRepo
+	UserRepo  *mysql.UserRepo
+	CacheRepo *sdkredis.CacheRepo
 }
 
 // NewExtraUserImpl 创建 ExtraUserImpl。
-func NewExtraUserImpl(userRepo *mysql.UserRepo) *ExtraUserImpl {
-	return &ExtraUserImpl{UserRepo: userRepo}
+func NewExtraUserImpl(userRepo *mysql.UserRepo, cacheRepo *sdkredis.CacheRepo) *ExtraUserImpl {
+	return &ExtraUserImpl{UserRepo: userRepo, CacheRepo: cacheRepo}
 }
 
 type updateProfileReq struct {
@@ -66,6 +68,7 @@ func (s *ExtraUserImpl) UpdateProfile(ctx context.Context) {
 		shared.WriteJSON(ctx, w, 500, map[string]interface{}{"code": 999, "message": err.Error()})
 		return
 	}
+	s.CacheRepo.DeleteUser(ctx, uid)
 	shared.WriteJSON(ctx, w, 200, map[string]interface{}{"code": 0, "message": "修改成功"})
 }
 
